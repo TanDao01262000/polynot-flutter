@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/partner.dart';
+import '../screens/chat_screen.dart';
 
 /* 
   Simple card view for partner selection
@@ -13,9 +14,13 @@ class PartnerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        print('Clicked on a parter ${partner.name}');
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatPage(partnerName: partner.name),
+          ),
+        );
       },
-
       child: Card(
         margin: EdgeInsets.symmetric(vertical: 8),
         child: Padding(
