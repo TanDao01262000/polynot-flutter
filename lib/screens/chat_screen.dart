@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/message.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/functional_button.dart';
+import '../services/chat_service.dart';
 import 'message_detail_screen.dart';
 
 class ChatPage extends StatefulWidget {
@@ -25,19 +26,47 @@ class _ChatPageState extends State<ChatPage> {
   ];
 
   final TextEditingController _controller = TextEditingController();
+  bool _isLoading = false;
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
+    // Add user message immediately
     setState(() {
       messages.add(Message(text: text, isUser: true));
-      messages.add(Message(
-        text: 'Sample response, repeat $text',
-        isUser: false,
-      ));
+      _isLoading = true;
     });
     _controller.clear();
+
+    try {
+      // Send message to API
+      final aiResponse = await ChatService.sendMessage(text);
+      
+      setState(() {
+        messages.add(aiResponse);
+        _isLoading = false;
+      });
+    } catch (e) {
+      // Handle error
+      setState(() {
+        messages.add(Message(
+          text: 'Sorry, I\'m having trouble connecting right now. Please try again.',
+          isUser: false,
+        ));
+        _isLoading = false;
+      });
+      
+      // Show error snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _navigateToMessageDetail(String messageText) {
@@ -68,8 +97,26 @@ class _ChatPageState extends State<ChatPage> {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(12),
-              itemCount: messages.length,
+              itemCount: messages.length + (_isLoading ? 1 : 0),
               itemBuilder: (context, index) {
+                if (index == messages.length && _isLoading) {
+                  // Show loading indicator
+                  return const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 8),
+                        Text('AI is typing...'),
+                      ],
+                    ),
+                  );
+                }
+                
                 final message = messages[index];
                 return MessageBubble(
                   message: message,
@@ -88,7 +135,7 @@ class _ChatPageState extends State<ChatPage> {
               child: Column(
                 children: [
                   Align(
-                    alignment: Alignment.centerRight,
+                    alignment: Alignment.centerLeft,
                     child: FunctionalButton(),
                   ),
                   const SizedBox(height: 10),
@@ -106,11 +153,12 @@ class _ChatPageState extends State<ChatPage> {
                           ),
                           style: const TextStyle(fontSize: 15),
                           onSubmitted: (_) => _sendMessage(),
+                          enabled: !_isLoading, // Disable input while loading
                         ),
                       ),
                       const SizedBox(width: 8),
                       IconButton(
-                        onPressed: _sendMessage,
+                        onPressed: _isLoading ? null : _sendMessage,
                         icon: const Icon(Icons.send),
                         color: Colors.tealAccent,
                       ),
