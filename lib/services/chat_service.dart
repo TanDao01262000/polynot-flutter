@@ -12,8 +12,8 @@ class ChatService {
   
   // Demo values - hardcoded for simplicity
   static const String userName = 'test_user';
-  static const String scenarioId = 'doctor_visit';
-  static const String threadId = 'abc123';
+  static const String scenarioId = 'coffee_shop';
+  static const String threadId = 'abc124';
 
   static Future<Message> sendMessage(String userInput) async {
     try {
@@ -39,8 +39,6 @@ class ChatService {
         final data = jsonDecode(response.body);
         print('Parsed Response Data: $data');
         
-        // Assuming the API returns a response in this format
-        // Adjust based on your actual API response structure
         final aiResponse = data['response'] ?? 'Sorry, I didn\'t understand that.';
         print('AI Response: $aiResponse');
         
@@ -49,7 +47,6 @@ class ChatService {
           isUser: false,
         );
       } else {
-        // Handle error response
         print('ERROR: HTTP ${response.statusCode}');
         print('Error Response Body: ${response.body}');
         print('Error Response Headers: ${response.headers}');
@@ -57,7 +54,6 @@ class ChatService {
         throw Exception();
       }
     } catch (e) {
-      // Handle network errors or other exceptions
       print('EXCEPTION: $e');
       print('Exception Type: ${e.runtimeType}');
       print('Stack Trace: ${StackTrace.current}');
@@ -66,40 +62,40 @@ class ChatService {
     }
   }
 
-  // Method to fetch chat history (for future use)
-  static Future<List<Message>> fetchChatHistory() async {
-    try {
-      print('=== FETCHING CHAT HISTORY ===');
-      print('URL: $baseUrl/chat/history?thread_id=$threadId');
+  // Fetch message but not used for now
+  // static Future<List<Message>> fetchChatHistory() async {
+  //   try {
+  //     print('=== FETCHING CHAT HISTORY ===');
+  //     print('URL: $baseUrl/chat/history?thread_id=$threadId');
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/chat/history?thread_id=$threadId'),
-        headers: {
-          'Authorization': 'Bearer $bearerToken',
-        },
-      );
+  //     final response = await http.get(
+  //       Uri.parse('$baseUrl/chat/history?thread_id=$threadId'),
+  //       headers: {
+  //         'Authorization': 'Bearer $bearerToken',
+  //       },
+  //     );
 
-      print('History Response Status: ${response.statusCode}');
-      print('History Response Body: ${response.body}');
+  //     print('History Response Status: ${response.statusCode}');
+  //     print('History Response Body: ${response.body}');
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List<dynamic> messages = data['messages'] ?? [];
+  //     if (response.statusCode == 200) {
+  //       final data = jsonDecode(response.body);
+  //       final List<dynamic> messages = data['messages'] ?? [];
         
-        return messages.map((msg) => Message(
-          text: msg['text'] ?? '',
-          isUser: msg['is_user'] ?? false,
-          timestamp: DateTime.parse(msg['timestamp'] ?? DateTime.now().toIso8601String()),
-        )).toList();
-      } else {
-        print('ERROR: Failed to fetch chat history - ${response.statusCode}');
-        print('Error Body: ${response.body}');
+  //       return messages.map((msg) => Message(
+  //         text: msg['text'] ?? '',
+  //         isUser: msg['is_user'] ?? false,
+  //         timestamp: DateTime.parse(msg['timestamp'] ?? DateTime.now().toIso8601String()),
+  //       )).toList();
+  //     } else {
+  //       print('ERROR: Failed to fetch chat history - ${response.statusCode}');
+  //       print('Error Body: ${response.body}');
         
-        throw Exception('Failed to fetch chat history: ${response.statusCode} - ${response.body}');
-      }
-    } catch (e) {
-      print('EXCEPTION in fetchChatHistory: $e');
-      throw Exception('Network error: $e');
-    }
-  }
+  //       throw Exception('Failed to fetch chat history: ${response.statusCode} - ${response.body}');
+  //     }
+  //   } catch (e) {
+  //     print('EXCEPTION in fetchChatHistory: $e');
+  //     throw Exception('Network error: $e');
+  //   }
+  // }
 } 
