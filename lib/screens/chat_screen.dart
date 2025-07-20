@@ -41,7 +41,12 @@ class _ChatPageState extends State<ChatPage> {
     } catch (e) {
       // If no chat history exists, send an initial greeting to the backend
       try {
-        final initialGreeting = await ChatService.sendInitialGreeting(widget.partner.id);
+        final initialGreeting = await ChatService.sendInitialGreeting(
+          widget.partner.id,
+          partnerName: widget.partner.name,
+          partnerRole: widget.partner.role,
+          partnerDescription: widget.partner.description,
+        );
         setState(() {
           messages.clear();
           messages.add(initialGreeting);

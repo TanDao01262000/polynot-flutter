@@ -62,7 +62,11 @@ class ChatService {
     }
   }
 
-  static Future<Message> sendInitialGreeting(String partnerId) async {
+  static Future<Message> sendInitialGreeting(String partnerId, {
+    String? partnerName,
+    String? partnerRole,
+    String? partnerDescription,
+  }) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/chat'),
@@ -76,6 +80,9 @@ class ChatService {
           'user_name': userName,
           'scenario_id': scenarioId,
           'is_initial_greeting': true, // Flag to indicate this is an initial greeting
+          'partner_name': partnerName,
+          'partner_role': partnerRole,
+          'partner_description': partnerDescription,
         }),
       );
 
