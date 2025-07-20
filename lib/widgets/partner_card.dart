@@ -17,7 +17,7 @@ class PartnerCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ChatPage(partnerName: partner.name),
+            builder: (context) => ChatPage(partner: partner),
           ),
         );
       },
