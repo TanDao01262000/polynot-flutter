@@ -5,29 +5,24 @@ import '../models/message.dart';
 
 class ChatService {
   // Get API configuration from environment variables
-  static String get baseUrl => dotenv.env['LOCAL_API_ENDPOINT'] ?? '';
-  
-  // Hardcoded bearer token for demo, make sure to place your GCP token here
-  // static const String bearerToken = 'eyJhbGciOiJSUzI1NiIsImtpZCI6Ijg4MjUwM2E1ZmQ1NmU5ZjczNGRmYmE1YzUwZDdiZjQ4ZGIyODRhZTkiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJhY2NvdW50cy5nb29nbGUuY29tIiwiYXpwIjoiNjE4MTA0NzA4MDU0LTlyOXMxYzRhbGczNmVybGl1Y2hvOXQ1Mm4zMm42ZGdxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiNjE4MTA0NzA4MDU0LTlyOXMxYzRhbGczNmVybGl1Y2hvOXQ1Mm4zMm42ZGdxLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTE0NjgwODY3MzEwMjUzNzQzODgxIiwiaGQiOiJwb2x5bm90LmFpIiwiZW1haWwiOiJ0YW5AcG9seW5vdC5haSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJhdF9oYXNoIjoiQkZ6WlN6cFN5MHM1RkdibEMyRnZ3QSIsIm5iZiI6MTc1MTIzMTg4MiwiaWF0IjoxNzUxMjMyMTgyLCJleHAiOjE3NTEyMzU3ODIsImp0aSI6IjljMDFlNzQ0ZDZkNTliNDY4NWFmNDRmMDY2OGFjNDg3ZTJjNjc2N2EifQ.nysJkJtP9RskT8p7ZMhs08u3otQfmqUrMzWGd3d-QbhWFBKm4q-vu0jViCyUly6JFxZeWo887rWdPu2OaT532MZFV90ym8nFwcxI6EcddC1X3Eki67xTNfOPVcvrnZrckDR0X2NZb7gOMsbVq6De6BTY5jkzE33SO20A6Acdg_3aQOlRo0oddfN-KlDxr_3OJ1lTMuL7JwS9S6kD0-oCC5Jp_iwdScUq-JQazjF_-VgKkxobEnRYi2FIGanmOYT_oqd0XXxe9zuIed5orpFced2aFtlzNtqW2uNUXZcI-wS7bp3l1OHKs6sSPyZfXsUDp-ZZ_IHY0iF8-fjvpCQf2Q';
+  static String get baseUrl => dotenv.env['LOCAL_API_ENDPOINT'] ?? 'http://localhost:8000';
   
   // Demo values - hardcoded for simplicity
-  static const String userName = 'test_user';
-  static const String scenarioId = 'coffee_shop';
-  static const String threadId = 'abc124';
+  static const String userName = 'john_doe';
 
-  static Future<Message> sendMessage(String userInput, {String? partnerId}) async {
+  static Future<Message> sendMessage(String userInput, {
+    required String partnerId,
+  }) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/chat'),
         headers: {
           'Content-Type': 'application/json',
-          // 'Authorization': 'Bearer $bearerToken',
         },
         body: jsonEncode({
-          'thread_id': partnerId ?? threadId,
-          'user_input': userInput,
           'user_name': userName,
-          'scenario_id': scenarioId,
+          'partner_id': partnerId,
+          'user_input': userInput,
         }),
       );
 
@@ -51,38 +46,30 @@ class ChatService {
         print('Error Response Body: ${response.body}');
         print('Error Response Headers: ${response.headers}');
         
-        throw Exception();
+        throw Exception('Failed to send message: ${response.statusCode}');
       }
     } catch (e) {
       print('EXCEPTION: $e');
       print('Exception Type: ${e.runtimeType}');
       print('Stack Trace: ${StackTrace.current}');
       
-      throw Exception();
+      throw Exception('Network error: $e');
     }
   }
 
-  static Future<Message> sendInitialGreeting(String partnerId, {
-    String? partnerName,
-    String? partnerRole,
-    String? partnerDescription,
+  // Send an initial greeting to start a conversation
+  static Future<Map<String, dynamic>> sendInitialGreeting({
+    required String partnerId,
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/chat'),
+        Uri.parse('$baseUrl/greet'),
         headers: {
           'Content-Type': 'application/json',
-          // 'Authorization': 'Bearer $bearerToken',
         },
         body: jsonEncode({
-          'thread_id': partnerId,
-          'user_input': '', // Empty input to trigger initial greeting
           'user_name': userName,
-          'scenario_id': scenarioId,
-          'is_initial_greeting': true, // Flag to indicate this is an initial greeting
-          'partner_name': partnerName,
-          'partner_role': partnerRole,
-          'partner_description': partnerDescription,
+          'partner_id': partnerId,
         }),
       );
 
@@ -93,57 +80,87 @@ class ChatService {
         final data = jsonDecode(response.body);
         print('Parsed Initial Greeting Response Data: $data');
         
-        final aiResponse = data['response'] ?? 'Hi, how can I help you?';
+        final aiResponse = data['greeting_message'] ?? 'Hi, how can I help you?';
+        final threadId = data['thread_id'] ?? '';
         print('AI Initial Greeting: $aiResponse');
+        print('Thread ID: $threadId');
         
-        return Message(
-          text: aiResponse,
-          isUser: false,
-        );
+        return {
+          'greeting_message': aiResponse,
+          'thread_id': threadId,
+        };
       } else {
         print('ERROR: HTTP ${response.statusCode} for initial greeting');
         print('Error Response Body: ${response.body}');
         
         // Return a default greeting if the backend fails
-        return Message(
-          text: 'Hi, how can I help you?',
-          isUser: false,
-        );
+        return {
+          'greeting_message': 'Hi, how can I help you?',
+          'thread_id': '',
+        };
       }
     } catch (e) {
       print('EXCEPTION in sendInitialGreeting: $e');
       
       // Return a default greeting if there's an exception
-      return Message(
-        text: 'Hi, how can I help you?',
-        isUser: false,
-      );
+      return {
+        'greeting_message': 'Hi, how can I help you?',
+        'thread_id': '',
+      };
     }
   }
 
   static Future<List<Message>> fetchChatHistory(String partnerId) async {
     try {
-      final url = '$baseUrl/threads/$partnerId/messages';
+      final url = '$baseUrl/messages/$userName/$partnerId';
       print('=== FETCHING CHAT HISTORY ===');
       print('URL: $url');
 
       final response = await http.get(
         Uri.parse(url),
         headers: {
-          // 'Authorization': 'Bearer $bearerToken', // No token needed for local testing
+          'Content-Type': 'application/json',
         },
       );
 
-      print('History Response Status:  [32m${response.statusCode} [0m');
+      print('History Response Status: ${response.statusCode}');
       print('History Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
-        final List<dynamic> messages = jsonDecode(response.body);
-        return messages.map((msg) => Message(
-          text: msg['content'] ?? '',
-          isUser: msg['role'] == 'user',
-          timestamp: DateTime.parse(msg['timestamp'] ?? DateTime.now().toIso8601String()),
-        )).toList();
+        final responseData = jsonDecode(response.body);
+        print('Parsed Response Data Type: ${responseData.runtimeType}');
+        print('Parsed Response Data: $responseData');
+        
+        List<dynamic> messages;
+        
+        // Handle different possible response structures
+        if (responseData is List) {
+          messages = responseData;
+          print('Response is a List with ${messages.length} items');
+        } else if (responseData is Map && responseData.containsKey('messages')) {
+          messages = responseData['messages'] as List<dynamic>;
+          print('Response is a Map with messages array containing ${messages.length} items');
+        } else if (responseData is Map && responseData.containsKey('data')) {
+          messages = responseData['data'] as List<dynamic>;
+          print('Response is a Map with data array containing ${messages.length} items');
+        } else {
+          print('Unexpected response structure: $responseData');
+          messages = [];
+        }
+        
+        print('Processing ${messages.length} messages...');
+        
+        final result = messages.map((msg) {
+          print('Processing message: $msg');
+          return Message(
+            text: msg['content'] ?? msg['message'] ?? msg['text'] ?? '',
+            isUser: msg['role'] == 'user' || msg['is_user'] == true,
+            timestamp: DateTime.parse(msg['timestamp'] ?? msg['created_at'] ?? DateTime.now().toIso8601String()),
+          );
+        }).toList();
+        
+        print('Returning ${result.length} messages');
+        return result;
       } else {
         print('ERROR: Failed to fetch chat history - ${response.statusCode}');
         print('Error Body: ${response.body}');

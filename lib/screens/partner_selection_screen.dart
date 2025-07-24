@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/partner.dart';
 import '../widgets/partner_card.dart';
-import './partner_create_screen.dart';
+import '../services/partner_service.dart';
 
 class PartnerSelectScreen extends StatefulWidget {
   const PartnerSelectScreen({super.key});
@@ -11,80 +11,112 @@ class PartnerSelectScreen extends StatefulWidget {
 }
 
 class _PartnerSelectScreenState extends State<PartnerSelectScreen> {
-  // The list is now a mutable state variable
-  final List<Partner> partnerList = [
-    Partner(
-      name: 'Sarah',
-      role: 'Barista',
-      description: 'Practice ordering coffee and making small talk',
-    ),
-    Partner(
-      name: 'Michael',
-      role: 'HR Manager',
-      description: 'Prepare for job interviews with common questions',
-    ),
-    Partner(
-      name: 'Emma',
-      role: 'Date Partner',
-      description: 'Simulate a first date conversation',
-    ),
-    // New partners
-    Partner(
-      name: 'David',
-      role: 'Tour Guide',
-      description: 'Practice asking for directions and local recommendations',
-    ),
-    Partner(
-      name: 'Lisa',
-      role: 'Language Instructor',
-      description: 'Improve your English through casual conversation',
-    ),
-    Partner(
-      name: 'James',
-      role: 'Corporate Executive',
-      description: 'Practice professional business meetings and negotiations',
-    ),
-  ];
+  List<Partner> partnerList = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      // Check API health first
+      await PartnerService.checkHealth();
+      print('API health check passed');
+
+      // Fetch all partners
+      final partners = await PartnerService.fetchAllPartners();
+      
+      setState(() {
+        partnerList = partners;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to connect to server: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadPartners() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      // Fetch all partners
+      final partners = await PartnerService.fetchAllPartners();
+      
+      setState(() {
+        partnerList = partners;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load partners: $e';
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Choose a partner'),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: ListView.builder(
-                itemCount: partnerList.length,
-                itemBuilder: (context, index) {
-                  return PartnerCard(partner: partnerList[index]);
-                },
-              ),
-            ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadPartners,
           ),
-          const SizedBox(height: 80),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final newPartner = await Navigator.push<Partner>(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PartnerCreateScreen(),
-            ),
-          );
-
-          if (newPartner != null) {
-            setState(() {
-              partnerList.add(newPartner);
-            });
-          }
-        },
-        label: const Text('Create your own partner'),
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _error!,
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _initializeApp,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : Column(
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: ListView.builder(
+                          itemCount: partnerList.length,
+                          itemBuilder: (context, index) {
+                            return PartnerCard(partner: partnerList[index]);
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 80),
+                  ],
+                ),
     );
   }
 }

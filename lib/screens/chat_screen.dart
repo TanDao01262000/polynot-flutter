@@ -21,6 +21,7 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final List<Message> messages = [];
   final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   bool _isLoading = false;
   bool _isInitializing = true;
 
@@ -30,38 +31,65 @@ class _ChatPageState extends State<ChatPage> {
     _loadChatHistory();
   }
 
+  // Auto-scroll to bottom when new messages are added
+  void _scrollToBottom() {
+    if (_scrollController.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      });
+    }
+  }
+
   Future<void> _loadChatHistory() async {
     try {
-      final chatHistory = await ChatService.fetchChatHistory(widget.partner.id);
+      // First, try to get initial greeting and thread_id
+      final greetingResponse = await ChatService.sendInitialGreeting(
+        partnerId: widget.partner.id,
+      );
+      
+      // Try to fetch existing chat history using partner ID
+      try {
+        final chatHistory = await ChatService.fetchChatHistory(widget.partner.id);
+        if (chatHistory.isNotEmpty) {
+          // We have existing messages, use them
+          setState(() {
+            messages.clear();
+            messages.addAll(chatHistory);
+            _isInitializing = false;
+          });
+          _scrollToBottom(); // Scroll to bottom after loading history
+          return;
+        }
+      } catch (historyError) {
+        print('No existing chat history found: $historyError');
+        // Continue to show initial greeting
+      }
+      
+      // No existing history, show initial greeting
+      final greetingMessage = greetingResponse['greeting_message'] as String;
       setState(() {
         messages.clear();
-        messages.addAll(chatHistory);
+        messages.add(Message(
+          text: greetingMessage,
+          isUser: false,
+        ));
         _isInitializing = false;
       });
+      _scrollToBottom(); // Scroll to bottom after showing greeting
     } catch (e) {
-      // If no chat history exists, send an initial greeting to the backend
-      try {
-        final initialGreeting = await ChatService.sendInitialGreeting(
-          widget.partner.id,
-          partnerName: widget.partner.name,
-          partnerRole: widget.partner.role,
-          partnerDescription: widget.partner.description,
-        );
-        setState(() {
-          messages.clear();
-          messages.add(initialGreeting);
-          _isInitializing = false;
-        });
-      } catch (greetingError) {
-        // Fallback to local greeting if backend greeting fails
-        setState(() {
-          messages.add(Message(
-            text: 'Hi, how can I help you?',
-            isUser: false,
-          ));
-          _isInitializing = false;
-        });
-      }
+      // Fallback to local greeting if everything fails
+      setState(() {
+        messages.add(Message(
+          text: 'Hi, how can I help you?',
+          isUser: false,
+        ));
+        _isInitializing = false;
+      });
+      _scrollToBottom(); // Scroll to bottom after fallback
     }
   }
 
@@ -75,15 +103,20 @@ class _ChatPageState extends State<ChatPage> {
       _isLoading = true;
     });
     _controller.clear();
+    _scrollToBottom(); // Scroll to bottom after adding user message
 
     try {
       // Send message to API
-      final aiResponse = await ChatService.sendMessage(text, partnerId: widget.partner.id);
+      final aiResponse = await ChatService.sendMessage(
+        text,
+        partnerId: widget.partner.id,
+      );
       
       setState(() {
         messages.add(aiResponse);
         _isLoading = false;
       });
+      _scrollToBottom(); // Scroll to bottom after adding AI response
     } catch (e) {
       // Handle error
       setState(() {
@@ -93,6 +126,7 @@ class _ChatPageState extends State<ChatPage> {
         ));
         _isLoading = false;
       });
+      _scrollToBottom(); // Scroll to bottom after adding error message
       
       // Show error snackbar
       if (mounted) {
@@ -118,6 +152,7 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void dispose() {
     _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -137,6 +172,7 @@ class _ChatPageState extends State<ChatPage> {
               children: [
                 Expanded(
                   child: ListView.builder(
+                    controller: _scrollController,
                     padding: const EdgeInsets.all(12),
                     itemCount: messages.length + (_isLoading ? 1 : 0),
                     itemBuilder: (context, index) {
@@ -152,7 +188,7 @@ class _ChatPageState extends State<ChatPage> {
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               ),
                               SizedBox(width: 8),
-                              Text('AI is typing...'),
+                              Text('Typing...'),
                             ],
                           ),
                         );
