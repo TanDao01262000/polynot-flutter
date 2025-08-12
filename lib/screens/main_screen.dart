@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/main_option_card.dart';
 import './partner_selection_screen.dart';
+import './vocabulary_generation_screen.dart';
 
 class MainScreen extends StatelessWidget{
   const MainScreen({super.key});
@@ -26,8 +27,20 @@ class MainScreen extends StatelessWidget{
                     builder: (context) => PartnerSelectScreen(),
                   ),
                 );
-
-            }),
+              },
+            ),
+            SizedBox(height: 32),
+            MainOptionCard(
+              text: 'Generate Vocabulary',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => VocabularyGenerationScreen(),
+                  ),
+                );
+              },
+            ),
             SizedBox(height: 32),
             MainOptionCard(text: 'Imporve your accent', onTap: () {}),
           ],
