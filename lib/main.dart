@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'screens/main_screen.dart';
+import 'package:provider/provider.dart';
+import 'screens/home_screen.dart';
 import 'services/partner_service.dart';
+import 'providers/vocabulary_provider.dart';
 
 void main() async {
   // Load environment variables
@@ -24,14 +26,19 @@ class MyApp extends StatelessWidget{
 
   @override
   Widget build(BuildContext context){
-    return MaterialApp(
-      title: "AI Partner",
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => VocabularyProvider()),
+      ],
+      child: MaterialApp(
+        title: "Polynot",
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        ),
+        home: const HomeScreen(),
+        debugShowCheckedModeBanner: false,
       ),
-      home: const MainScreen(),
-      debugShowCheckedModeBanner: false,
     );
   }
 }
