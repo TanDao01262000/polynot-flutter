@@ -97,13 +97,24 @@ class PartnerService {
       
       print('Checking API health at: $uri');
       
-      final response = await http.get(uri);
+      final response = await http.get(uri).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          throw Exception('Health check timeout after 5 seconds');
+        },
+      );
 
       print('Health Check Response Status: ${response.statusCode}');
       print('Health Check Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        try {
+          return jsonDecode(response.body);
+        } catch (jsonError) {
+          print('Warning: Health check returned non-JSON response: $jsonError');
+          // Return a simple status if JSON parsing fails
+          return {'status': 'ok', 'message': 'API is running'};
+        }
       } else {
         print('ERROR: Health check failed - ${response.statusCode}');
         print('Error Body: ${response.body}');

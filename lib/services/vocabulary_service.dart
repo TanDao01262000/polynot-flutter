@@ -10,7 +10,7 @@ class VocabularyService {
   static String get baseUrl {
     final envUrl = dotenv.env['VOCAB_API_BASE_URL']?.trim();
     if (envUrl != null && envUrl.isNotEmpty) return envUrl;
-    return 'http://localhost:8000';
+    return 'http://localhost:8001';
   }
 
   static bool get debugEnabled {
@@ -380,10 +380,28 @@ class VocabularyService {
       final response = await http.get(
         uri,
         headers: {'Content-Type': 'application/json'},
+      ).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          throw Exception('Health check timeout after 5 seconds');
+        },
       );
       _log('Status: ${response.statusCode}');
       _log('Response: ${_trimBody(response.body)}');
-      return response.statusCode == 200;
+      
+      if (response.statusCode == 200) {
+        try {
+          // Try to parse JSON response
+          final data = jsonDecode(response.body);
+          _log('Health check successful: $data');
+          return true;
+        } catch (jsonError) {
+          _log('Warning: Health check returned non-JSON response: $jsonError');
+          // Consider it healthy if we get 200, even without valid JSON
+          return true;
+        }
+      }
+      return false;
     } catch (e) {
       _log('Error: $e');
       return false;

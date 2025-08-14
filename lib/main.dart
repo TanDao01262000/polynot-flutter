@@ -9,12 +9,13 @@ void main() async {
   // Load environment variables
   await dotenv.load(fileName: ".env");
   
-  // Check API health on startup
+  // Check API health on startup (non-blocking)
   try {
     await PartnerService.checkHealth();
-    print('API is healthy and ready');
+    print('Chat API is healthy and ready');
   } catch (e) {
-    print('Warning: API health check failed: $e');
+    print('Warning: Chat API health check failed: $e');
+    print('The app will continue to work, but chat features may not be available.');
     // Continue with app startup even if API is down
   }
   
