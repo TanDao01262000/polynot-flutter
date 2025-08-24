@@ -31,7 +31,7 @@ class _VocabularyGenerationScreenState extends State<VocabularyGenerationScreen>
   bool _saveTopicList = true; // only used for multiple
 
   final List<String> _levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
-  final List<String> _languagesToLearn = ['english', 'spanish', 'french', 'german', 'italian'];
+  final List<String> _languagesToLearn = ['english', 'spanish', 'french', 'german', 'italian', 'chinese', 'japanese', 'korean'];
   final List<String> _nativeLanguages = ['vietnamese', 'english', 'spanish', 'french', 'german'];
 
   @override

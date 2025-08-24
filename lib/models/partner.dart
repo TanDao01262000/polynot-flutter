@@ -12,6 +12,7 @@ class Partner {
   final String communicationStyle;
   final String expertise;
   final String interests;
+  final String? userName;
 
   Partner({
     String? id,
@@ -25,6 +26,7 @@ class Partner {
     required this.communicationStyle,
     required this.expertise,
     required this.interests,
+    this.userName,
   }) : id = id ?? const Uuid().v4();
 
   // Factory constructor for creating from API response
@@ -41,6 +43,7 @@ class Partner {
       communicationStyle: json['communication_style'],
       expertise: json['expertise'],
       interests: json['interests'],
+      userName: json['user_name'] ?? json['user_id'], // API returns user_id but we store as userName
     );
   }
 
@@ -57,6 +60,7 @@ class Partner {
       'communication_style': communicationStyle,
       'expertise': expertise,
       'interests': interests,
+      if (userName != null) 'user_name': userName,
     };
   }
 

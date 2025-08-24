@@ -28,7 +28,10 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
     'Spanish', 
     'French',
     'German',
-    'Italian'
+    'Italian',
+    'Chinese',
+    'Japanese',
+    'Korean'
   ];
 
   @override

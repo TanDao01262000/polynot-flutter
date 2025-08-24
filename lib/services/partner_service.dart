@@ -90,6 +90,37 @@ class PartnerService {
     }
   }
 
+  // Create a new partner
+  static Future<Partner> createPartner(Partner partner) async {
+    try {
+      final uri = Uri.parse('$baseUrl/partners/');
+      
+      print('Creating partner at: $uri');
+      print('Partner data: ${partner.toJson()}');
+      
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(partner.toJson()),
+      );
+
+      print('Create Partner Response Status: ${response.statusCode}');
+      print('Create Partner Response Body: ${response.body}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final partnerJson = jsonDecode(response.body);
+        return Partner.fromJson(partnerJson);
+      } else {
+        print('ERROR: Failed to create partner - ${response.statusCode}');
+        print('Error Body: ${response.body}');
+        throw Exception('Failed to create partner: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('EXCEPTION in createPartner: $e');
+      throw Exception('Network error: $e');
+    }
+  }
+
   // Check API health
   static Future<Map<String, dynamic>> checkHealth() async {
     try {

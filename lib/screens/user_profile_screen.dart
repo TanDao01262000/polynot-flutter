@@ -432,29 +432,61 @@ class UserProfileEditScreen extends StatefulWidget {
 
 class _UserProfileEditScreenState extends State<UserProfileEditScreen> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _firstNameController;
-  late TextEditingController _lastNameController;
-  late TextEditingController _targetLanguageController;
+  TextEditingController? _firstNameController;
+  TextEditingController? _lastNameController;
+  String _selectedTargetLanguage = 'English';
   String _selectedUserLevel = 'A1';
   bool _isLoading = false;
+  
+  // Available target languages
+  final List<String> _targetLanguages = [
+    'English',
+    'Spanish', 
+    'French',
+    'German',
+    'Italian',
+    'Chinese',
+    'Japanese',
+    'Korean'
+  ];
 
   @override
   void initState() {
     super.initState();
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    final user = userProvider.currentUser;
-    
-    _firstNameController = TextEditingController(text: user?.firstName ?? '');
-    _lastNameController = TextEditingController(text: user?.lastName ?? '');
-    _targetLanguageController = TextEditingController(text: user?.targetLanguage ?? '');
-    _selectedUserLevel = user?.userLevel ?? 'A1';
+    // Use a post-frame callback to ensure the widget is fully built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _initializeControllers();
+      }
+    });
+  }
+
+  void _initializeControllers() {
+    try {
+      // Dispose existing controllers first to prevent memory leaks
+      _firstNameController?.dispose();
+      _lastNameController?.dispose();
+      
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final user = userProvider.currentUser;
+      
+      _firstNameController = TextEditingController(text: user?.firstName ?? '');
+      _lastNameController = TextEditingController(text: user?.lastName ?? '');
+      _selectedTargetLanguage = user?.targetLanguage ?? 'English';
+      _selectedUserLevel = user?.userLevel ?? 'A1';
+    } catch (e) {
+      // Fallback initialization if there's an error
+      _firstNameController = TextEditingController();
+      _lastNameController = TextEditingController();
+      _selectedTargetLanguage = 'English';
+      _selectedUserLevel = 'A1';
+    }
   }
 
   @override
   void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _targetLanguageController.dispose();
+    _firstNameController?.dispose();
+    _lastNameController?.dispose();
     super.dispose();
   }
 
@@ -477,13 +509,13 @@ class _UserProfileEditScreenState extends State<UserProfileEditScreen> {
 
       final request = UserProfileUpdateRequest(
         userLevel: _selectedUserLevel,
-        targetLanguage: _targetLanguageController.text.trim(),
-        firstName: _firstNameController.text.trim().isEmpty 
+        targetLanguage: _selectedTargetLanguage,
+        firstName: _firstNameController?.text.trim().isEmpty == true
             ? null 
-            : _firstNameController.text.trim(),
-        lastName: _lastNameController.text.trim().isEmpty 
+            : _firstNameController?.text.trim(),
+        lastName: _lastNameController?.text.trim().isEmpty == true
             ? null 
-            : _lastNameController.text.trim(),
+            : _lastNameController?.text.trim(),
       );
 
       final success = await userProvider.updateUserProfile(userName, request);
@@ -525,6 +557,17 @@ class _UserProfileEditScreenState extends State<UserProfileEditScreen> {
       ),
       body: Consumer<UserProvider>(
         builder: (context, userProvider, child) {
+          // Ensure controllers are initialized
+          if (_firstNameController == null || _lastNameController == null) {
+            // Use a post-frame callback to avoid build-time state changes
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                _initializeControllers();
+                setState(() {}); // Trigger rebuild with initialized controllers
+              }
+            });
+          }
+          
           return SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
             child: Form(
@@ -534,7 +577,7 @@ class _UserProfileEditScreenState extends State<UserProfileEditScreen> {
                 children: [
                   // First Name field
                   TextFormField(
-                    controller: _firstNameController,
+                    controller: _firstNameController ?? TextEditingController(),
                     decoration: const InputDecoration(
                       labelText: 'First Name',
                       hintText: 'Enter your first name',
@@ -546,7 +589,7 @@ class _UserProfileEditScreenState extends State<UserProfileEditScreen> {
 
                   // Last Name field
                   TextFormField(
-                    controller: _lastNameController,
+                    controller: _lastNameController ?? TextEditingController(),
                     decoration: const InputDecoration(
                       labelText: 'Last Name',
                       hintText: 'Enter your last name',
@@ -556,17 +599,29 @@ class _UserProfileEditScreenState extends State<UserProfileEditScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Target Language field
-                  TextFormField(
-                    controller: _targetLanguageController,
+                  // Target Language dropdown
+                  DropdownButtonFormField<String>(
+                    value: _selectedTargetLanguage,
                     decoration: const InputDecoration(
                       labelText: 'Target Language',
-                      hintText: 'e.g., English, Spanish, French',
                       prefixIcon: Icon(Icons.language),
                       border: OutlineInputBorder(),
                     ),
+                    items: _targetLanguages.map((language) {
+                      return DropdownMenuItem(
+                        value: language,
+                        child: Text(language),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _selectedTargetLanguage = value;
+                        });
+                      }
+                    },
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
+                      if (value == null || value.isEmpty) {
                         return 'Target language is required';
                       }
                       return null;
