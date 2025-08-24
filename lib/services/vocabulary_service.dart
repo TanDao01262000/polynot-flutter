@@ -33,7 +33,7 @@ class VocabularyService {
 
   static String _trimBody(String body, {int max = 800}) {
     if (body.length <= max) return body;
-    return body.substring(0, max) + '…(truncated)';
+    return '${body.substring(0, max)}…(truncated)';
   }
   
   // Single topic generation

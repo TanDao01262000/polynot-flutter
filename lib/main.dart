@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'screens/home_screen.dart';
 import 'services/partner_service.dart';
 import 'providers/vocabulary_provider.dart';
+import 'providers/user_provider.dart';
 
 void main() async {
   // Load environment variables
@@ -30,6 +31,7 @@ class MyApp extends StatelessWidget{
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => VocabularyProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
       ],
       child: MaterialApp(
         title: "Polynot",

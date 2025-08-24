@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/partner.dart';
 import '../screens/chat_screen.dart';
+import '../services/user_service.dart';
 
 /* 
   Simple card view for partner selection
@@ -29,9 +30,30 @@ class PartnerCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                partner.name,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      partner.name,
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${partner.userLevel} - ${UserService.getUserLevelDisplayName(partner.userLevel)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               SizedBox(height: 8),
               Text(partner.role, style: TextStyle(color: Colors.grey[600])),
