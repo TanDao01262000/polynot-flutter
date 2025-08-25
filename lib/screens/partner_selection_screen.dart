@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/partner.dart';
 import '../widgets/partner_card.dart';
 import '../services/partner_service.dart';
+import '../providers/user_provider.dart';
 
 class PartnerSelectScreen extends StatefulWidget {
   const PartnerSelectScreen({super.key});
@@ -28,22 +30,32 @@ class _PartnerSelectScreenState extends State<PartnerSelectScreen> {
         _error = null;
       });
 
+      // Get current user's username before any async operations
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final currentUser = userProvider.currentUser;
+      final userName = currentUser?.userName;
+
       // Check API health first
       await PartnerService.checkHealth();
       print('API health check passed');
 
-      // Fetch all partners
-      final partners = await PartnerService.fetchAllPartners();
+      // Fetch partners for the current user
+      final partners = await PartnerService.fetchAllPartners(userName);
       
-      setState(() {
-        partnerList = partners;
-        _isLoading = false;
-      });
+      // Check if widget is still mounted before updating state
+      if (mounted) {
+        setState(() {
+          partnerList = partners;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = 'Failed to connect to server: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to connect to server: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -54,18 +66,28 @@ class _PartnerSelectScreenState extends State<PartnerSelectScreen> {
         _error = null;
       });
 
-      // Fetch all partners
-      final partners = await PartnerService.fetchAllPartners();
+      // Get current user's username before any async operations
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final currentUser = userProvider.currentUser;
+      final userName = currentUser?.userName;
+
+      // Fetch partners for the current user
+      final partners = await PartnerService.fetchAllPartners(userName);
       
-      setState(() {
-        partnerList = partners;
-        _isLoading = false;
-      });
+      // Check if widget is still mounted before updating state
+      if (mounted) {
+        setState(() {
+          partnerList = partners;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = 'Failed to load partners: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load partners: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
