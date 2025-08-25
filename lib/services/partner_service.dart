@@ -7,9 +7,11 @@ class PartnerService {
   static String get baseUrl => dotenv.env['LOCAL_API_ENDPOINT'] ?? 'http://localhost:8000';
 
   // Fetch all partners (both premade and custom)
-  static Future<List<Partner>> fetchAllPartners() async {
+  static Future<List<Partner>> fetchAllPartners([String? userName]) async {
     try {
-      final uri = Uri.parse('$baseUrl/partners/');
+      final uri = userName != null 
+          ? Uri.parse('$baseUrl/partners/?user_name=$userName')
+          : Uri.parse('$baseUrl/partners/');
       
       print('Fetching partners from: $uri');
       
