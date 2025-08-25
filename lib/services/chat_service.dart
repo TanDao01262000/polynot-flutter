@@ -7,11 +7,9 @@ class ChatService {
   // Get API configuration from environment variables
   static String get baseUrl => dotenv.env['LOCAL_API_ENDPOINT'] ?? 'http://localhost:8000';
   
-  // Demo values - hardcoded for simplicity
-  static const String userName = 'john_doe';
-
   static Future<Message> sendMessage(String userInput, {
     required String partnerId,
+    required String userName,
   }) async {
     try {
       final response = await http.post(
@@ -60,6 +58,7 @@ class ChatService {
   // Send an initial greeting to start a conversation
   static Future<Map<String, dynamic>> sendInitialGreeting({
     required String partnerId,
+    required String userName,
   }) async {
     try {
       final response = await http.post(
@@ -110,7 +109,7 @@ class ChatService {
     }
   }
 
-  static Future<List<Message>> fetchChatHistory(String partnerId) async {
+  static Future<List<Message>> fetchChatHistory(String partnerId, String userName) async {
     try {
       final url = '$baseUrl/messages/$userName/$partnerId';
       print('=== FETCHING CHAT HISTORY ===');

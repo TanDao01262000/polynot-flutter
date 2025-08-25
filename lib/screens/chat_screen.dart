@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/message.dart';
 import '../models/partner.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/functional_button.dart';
 import '../services/chat_service.dart';
+import '../providers/user_provider.dart';
 import 'message_detail_screen.dart';
 
 class ChatPage extends StatefulWidget {
@@ -46,14 +48,20 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> _loadChatHistory() async {
     try {
+      // Get current user from provider
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final currentUser = userProvider.currentUser;
+      final userName = currentUser?.userName ?? 'Kay'; // Fallback to Kay for testing
+      
       // First, try to get initial greeting and thread_id
       final greetingResponse = await ChatService.sendInitialGreeting(
         partnerId: widget.partner.id,
+        userName: userName,
       );
       
       // Try to fetch existing chat history using partner ID
       try {
-        final chatHistory = await ChatService.fetchChatHistory(widget.partner.id);
+        final chatHistory = await ChatService.fetchChatHistory(widget.partner.id, userName);
         if (chatHistory.isNotEmpty) {
           // We have existing messages, use them
           setState(() {
@@ -106,10 +114,16 @@ class _ChatPageState extends State<ChatPage> {
     _scrollToBottom(); // Scroll to bottom after adding user message
 
     try {
+      // Get current user from provider
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final currentUser = userProvider.currentUser;
+      final userName = currentUser?.userName ?? 'Kay'; // Fallback to Kay for testing
+      
       // Send message to API
       final aiResponse = await ChatService.sendMessage(
         text,
         partnerId: widget.partner.id,
+        userName: userName,
       );
       
       setState(() {
