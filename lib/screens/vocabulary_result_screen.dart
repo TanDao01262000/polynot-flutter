@@ -1,11 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/vocabulary_provider.dart';
+import '../providers/user_provider.dart';
 import '../widgets/vocabulary_item_card.dart';
+import '../widgets/vocabulary_interaction_card.dart';
 import '../utils/string_extensions.dart';
 
-class VocabularyResultScreen extends StatelessWidget {
+class VocabularyResultScreen extends StatefulWidget {
   const VocabularyResultScreen({super.key});
+
+  @override
+  State<VocabularyResultScreen> createState() => _VocabularyResultScreenState();
+}
+
+class _VocabularyResultScreenState extends State<VocabularyResultScreen> {
+  bool _hasInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeUser();
+    });
+  }
+
+  void _initializeUser() {
+    if (_hasInitialized) return;
+    
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final vocabProvider = Provider.of<VocabularyProvider>(context, listen: false);
+    
+    if (userProvider.currentUser != null) {
+      vocabProvider.setCurrentUserId(userProvider.currentUser!.id);
+    }
+    
+    _hasInitialized = true;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -157,14 +187,34 @@ class VocabularyResultScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   itemCount: provider.vocabularyItems.length,
                   itemBuilder: (context, index) {
-                    return VocabularyItemCard(
-                      item: provider.vocabularyItems[index],
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('${provider.vocabularyItems[index].word} - ${provider.vocabularyItems[index].definition}'),
-                          ),
-                        );
+                    final item = provider.vocabularyItems[index];
+                    return Consumer<UserProvider>(
+                      builder: (context, userProvider, child) {
+                        if (userProvider.currentUser != null) {
+                          // Use interactive card for logged-in users
+                          return VocabularyInteractionCard(
+                            item: item,
+                            onFavorite: () => provider.toggleFavorite(item.id),
+                            onHide: () => provider.hideVocabulary(item.id),
+                            onRate: (rating) => provider.rateDifficulty(item.id, rating),
+                            onReview: () => provider.markAsReviewed(item.id),
+                            onAddNote: (note) => provider.addNote(item.id, note),
+                            onAddToList: (listId) => provider.addToVocabularyList(listId, item.id),
+                            personalLists: provider.personalLists,
+                          );
+                        } else {
+                          // Use basic card for non-logged-in users
+                          return VocabularyItemCard(
+                            item: item,
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('${item.word} - ${item.definition}'),
+                                ),
+                              );
+                            },
+                          );
+                        }
                       },
                     );
                   },

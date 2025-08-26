@@ -136,6 +136,24 @@ class UserProvider with ChangeNotifier {
     }
   }
 
+  // Authenticate user with password
+  Future<bool> authenticateUser(String userName, String password) async {
+    try {
+      _setLoading(true);
+      clearError();
+      
+      final user = await UserService.authenticateUser(userName, password);
+      _currentUser = user;
+      _setLoading(false);
+      notifyListeners();
+      
+      return true;
+    } catch (e) {
+      _setError(e.toString());
+      return false;
+    }
+  }
+
   // Update user profile
   Future<bool> updateUserProfile(String userName, UserProfileUpdateRequest request) async {
     try {

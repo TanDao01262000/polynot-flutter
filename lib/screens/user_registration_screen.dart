@@ -15,12 +15,16 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _userNameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   
   String _selectedUserLevel = 'A1';
   String _selectedTargetLanguage = 'English';
   bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   // Available target languages
   final List<String> _targetLanguages = [
@@ -38,6 +42,8 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
   void dispose() {
     _userNameController.dispose();
     _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
     super.dispose();
@@ -58,6 +64,7 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
       final request = UserRegistrationRequest(
         userName: _userNameController.text.trim(),
         email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
         userLevel: _selectedUserLevel,
         targetLanguage: _selectedTargetLanguage,
         firstName: _firstNameController.text.trim().isEmpty 
@@ -180,6 +187,68 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
                   ),
                   const SizedBox(height: 16),
 
+                  // Password fields
+                  TextFormField(
+                    controller: _passwordController,
+                    decoration: InputDecoration(
+                      labelText: 'Password *',
+                      hintText: 'Enter your password',
+                      prefixIcon: const Icon(Icons.lock),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
+                      border: const OutlineInputBorder(),
+                    ),
+                    obscureText: _obscurePassword,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Password is required';
+                      }
+                      if (value.trim().length < 8) {
+                        return 'Password must be at least 8 characters';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    decoration: InputDecoration(
+                      labelText: 'Confirm Password *',
+                      hintText: 'Re-enter your password',
+                      prefixIcon: const Icon(Icons.lock),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscureConfirmPassword = !_obscureConfirmPassword;
+                          });
+                        },
+                      ),
+                      border: const OutlineInputBorder(),
+                    ),
+                    obscureText: _obscureConfirmPassword,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Confirm password is required';
+                      }
+                      if (value.trim() != _passwordController.text.trim()) {
+                        return 'Passwords do not match';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
                   // First Name field
                   TextFormField(
                     controller: _firstNameController,
@@ -280,7 +349,7 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
                         const SizedBox(height: 8),
                         Text(
                           '• Please use a real email address (Gmail, Yahoo, Outlook, etc.)\n'
-                          '• Password will be set to TestPassword123!\n'
+                          '• Create a strong password (at least 8 characters)\n'
                           '• You will receive an email confirmation link\n'
                           '• Please confirm your email before logging in',
                           style: TextStyle(color: Colors.blue.shade700),
