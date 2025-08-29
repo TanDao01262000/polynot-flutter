@@ -4,6 +4,7 @@ import '../widgets/main_option_card.dart';
 import '../providers/user_provider.dart';
 import './partner_selection_screen.dart';
 import './vocabulary_generation_screen.dart';
+import './vocabulary_list_screen.dart';
 import './user_registration_screen.dart';
 import './user_login_screen.dart';
 import './user_profile_screen.dart';
@@ -164,6 +165,32 @@ class HomeScreen extends StatelessWidget {
                     builder: (context) => VocabularyGenerationScreen(),
                   ),
                 );
+              },
+            ),
+            // Show Vocabulary List only when user is logged in
+            Consumer<UserProvider>(
+              builder: (context, userProvider, child) {
+                if (userProvider.isLoggedIn) {
+                  return Column(
+                    children: [
+                      const SizedBox(height: 24),
+                      MainOptionCard(
+                        text: 'Vocabulary List',
+                        subtitle: 'Browse and manage your saved vocabulary',
+                        icon: Icons.list,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const VocabularyListScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  );
+                }
+                return const SizedBox.shrink();
               },
             ),
           ],

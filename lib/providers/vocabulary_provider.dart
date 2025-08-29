@@ -182,6 +182,8 @@ class VocabularyProvider extends ChangeNotifier {
     }
   }
 
+
+
   // Mark as reviewed
   Future<bool> markAsReviewed(String vocabEntryId) async {
     if (_currentUserId == null) return false;

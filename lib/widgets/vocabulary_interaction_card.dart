@@ -7,9 +7,9 @@ class VocabularyInteractionCard extends StatefulWidget {
   final VocabularyItem item;
   final VoidCallback onFavorite;
   final VoidCallback onHide;
-  final Function(int) onRate;
   final VoidCallback onReview;
   final Function(String) onAddNote;
+  final Function(int)? onRate;
   final Function(String) onAddToList;
   final List<VocabularyPersonalList> personalLists;
 
@@ -18,9 +18,9 @@ class VocabularyInteractionCard extends StatefulWidget {
     required this.item,
     required this.onFavorite,
     required this.onHide,
-    required this.onRate,
     required this.onReview,
     required this.onAddNote,
+    this.onRate,
     required this.onAddToList,
     required this.personalLists,
   });
@@ -40,7 +40,7 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: widget.item.isFavorite 
-            ? BorderSide(color: Colors.orange.shade300, width: 2)
+            ? BorderSide(color: Colors.orange.shade300, width: 3)
             : BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.3)),
       ),
       child: Column(
@@ -53,6 +53,7 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
                 _isExpanded = !_isExpanded;
               });
             },
+            onProgressTap: () => _showProgressDialog(context),
           ),
           
           // Interaction buttons
@@ -67,211 +68,217 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
             ),
             child: Row(
               children: [
-                // Favorite button
-                IconButton(
-                  onPressed: widget.onFavorite,
-                  icon: Icon(
-                    widget.item.isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: widget.item.isFavorite ? Colors.red : null,
-                    size: 20,
-                  ),
-                  tooltip: widget.item.isFavorite ? 'Remove from favorites' : 'Add to favorites',
+                // Primary actions (most important)
+                Row(
+                  children: [
+                    // Favorite button
+                    IconButton(
+                      onPressed: widget.onFavorite,
+                      icon: Icon(
+                        widget.item.isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: widget.item.isFavorite ? Colors.red : Colors.grey.shade600,
+                        size: 24,
+                      ),
+                      tooltip: widget.item.isFavorite ? 'Remove from favorites' : 'Add to favorites',
+                    ),
+                    
+                    // Review button
+                    IconButton(
+                      onPressed: widget.onReview,
+                      icon: Icon(
+                        widget.item.lastReviewed != null ? Icons.check_circle : Icons.check_circle_outline,
+                        color: widget.item.lastReviewed != null ? Colors.green : Colors.grey.shade600,
+                        size: 24,
+                      ),
+                      tooltip: 'Mark as reviewed',
+                    ),
+                  ],
                 ),
                 
-                // Hide button
-                IconButton(
-                  onPressed: widget.onHide,
-                  icon: Icon(
-                    widget.item.isHidden ? Icons.visibility_off : Icons.visibility,
-                    color: widget.item.isHidden ? Colors.orange : null,
-                    size: 20,
-                  ),
-                  tooltip: widget.item.isHidden ? 'Show item' : 'Hide item',
-                ),
+                const Spacer(),
                 
-                // Difficulty rating
-                Expanded(
-                  child: Row(
-                    children: List.generate(5, (index) {
-                      return GestureDetector(
-                        onTap: () => widget.onRate(index + 1),
-                        child: Icon(
-                          index < (widget.item.difficultyRating ?? 0) 
-                              ? Icons.star 
-                              : Icons.star_border,
-                          color: Colors.amber,
-                          size: 18,
+                // Secondary actions (less important)
+                Row(
+                  children: [
+                    // Hide button
+                    IconButton(
+                      onPressed: widget.onHide,
+                      icon: Icon(
+                        widget.item.isHidden ? Icons.visibility_off : Icons.visibility,
+                        color: widget.item.isHidden ? Colors.orange : Colors.grey.shade600,
+                        size: 20,
+                      ),
+                      tooltip: widget.item.isHidden ? 'Show item' : 'Hide item',
+                    ),
+                    
+                    // Notes button
+                    IconButton(
+                      onPressed: () => _showNotesDialog(context),
+                      icon: Icon(
+                        widget.item.personalNotes?.isNotEmpty == true 
+                            ? Icons.note 
+                            : Icons.note_outlined,
+                        color: widget.item.personalNotes?.isNotEmpty == true ? Colors.blue : Colors.grey.shade600,
+                        size: 20,
+                      ),
+                      tooltip: 'Add notes',
+                    ),
+                    
+                    // Rate difficulty button
+                    if (widget.onRate != null)
+                      PopupMenuButton<int>(
+                        icon: Icon(
+                          widget.item.difficultyRating != null ? Icons.star : Icons.star_outline,
+                          size: 20,
+                          color: widget.item.difficultyRating != null ? Colors.amber : Colors.grey.shade600,
                         ),
-                      );
-                    }),
-                  ),
-                ),
-                
-                // Review button
-                IconButton(
-                  onPressed: widget.onReview,
-                  icon: Icon(
-                    widget.item.lastReviewed != null ? Icons.check_circle : Icons.check_circle_outline,
-                    color: widget.item.lastReviewed != null ? Colors.green : null,
-                    size: 20,
-                  ),
-                  tooltip: 'Mark as reviewed',
-                ),
-                
-                // Notes button
-                IconButton(
-                  onPressed: () => _showNotesDialog(context),
-                  icon: Icon(
-                    widget.item.personalNotes?.isNotEmpty == true 
-                        ? Icons.note 
-                        : Icons.note_outlined,
-                    color: widget.item.personalNotes?.isNotEmpty == true ? Colors.blue : null,
-                    size: 20,
-                  ),
-                  tooltip: 'Add notes',
-                ),
-                
-                // Add to list button
-                if (widget.personalLists.isNotEmpty)
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.add, size: 20),
-                    tooltip: 'Add to list',
-                    onSelected: widget.onAddToList,
-                    itemBuilder: (context) => widget.personalLists.map((list) {
-                      return PopupMenuItem(
-                        value: list.id,
-                        child: Row(
-                          children: [
-                            const Icon(Icons.bookmark, size: 16),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text(list.name)),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                
-                // Expand button
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _isExpanded = !_isExpanded;
-                    });
-                  },
-                  icon: Icon(
-                    _isExpanded ? Icons.expand_less : Icons.expand_more,
-                    size: 20,
-                  ),
+                        tooltip: 'Rate difficulty',
+                        onSelected: widget.onRate,
+                        itemBuilder: (context) => List.generate(5, (index) {
+                          final rating = index + 1;
+                          final isSelected = widget.item.difficultyRating == rating;
+                          return PopupMenuItem(
+                            value: rating,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.star,
+                                  size: 16,
+                                  color: isSelected ? Colors.amber : Colors.grey,
+                                ),
+                                const SizedBox(width: 8),
+                                Text('$rating - ${_getDifficultyText(rating)}'),
+                              ],
+                            ),
+                          );
+                        }),
+                      ),
+                    
+                    // Add to list button
+                    if (widget.personalLists.isNotEmpty)
+                      PopupMenuButton<String>(
+                        icon: Icon(Icons.bookmark_add, size: 20, color: Colors.grey.shade600),
+                        tooltip: 'Add to list',
+                        onSelected: widget.onAddToList,
+                        itemBuilder: (context) => widget.personalLists.map((list) {
+                          return PopupMenuItem(
+                            value: list.id,
+                            child: Row(
+                              children: [
+                                const Icon(Icons.bookmark, size: 16),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text(list.name)),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                  ],
                 ),
               ],
             ),
           ),
           
-          // Expanded content
-          if (_isExpanded) ...[
-            Container(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Translation
-                  if (widget.item.translation.isNotEmpty) ...[
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.translate, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Translation: ${widget.item.translation}',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  
-                  // Personal notes
-                  if (widget.item.personalNotes?.isNotEmpty == true) ...[
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.note, size: 16, color: Colors.blue),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Notes: ${widget.item.personalNotes}',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontStyle: FontStyle.italic,
-                              color: Colors.blue,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  
-                  // Difficulty rating display
-                  if (widget.item.difficultyRating != null) ...[
-                    Row(
-                      children: [
-                        const Icon(Icons.star, size: 16, color: Colors.amber),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Difficulty: ${widget.item.difficultyRating}/5',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  
-                  // Review info
-                  if (widget.item.reviewCount > 0 || widget.item.lastReviewed != null) ...[
-                    Row(
-                      children: [
-                        const Icon(Icons.check_circle, size: 16, color: Colors.green),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Reviewed ${widget.item.reviewCount} time${widget.item.reviewCount == 1 ? '' : 's'}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                    if (widget.item.lastReviewed != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'Last reviewed: ${_formatDate(widget.item.lastReviewed!)}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 8),
-                  ],
-                  
-                  // Metadata
-                  Text(
-                    'Created: ${_formatDate(widget.item.createdAt)}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey,
-                    ),
-                  ),
-                  if (widget.item.targetLanguage != widget.item.originalLanguage)
-                    Text(
-                      '${widget.item.targetLanguage} → ${widget.item.originalLanguage}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
+                     // Expanded content (simplified)
+           if (_isExpanded) ...[
+             Container(
+               padding: const EdgeInsets.all(16),
+               decoration: BoxDecoration(
+                 color: Colors.grey.shade50,
+                 borderRadius: const BorderRadius.only(
+                   bottomLeft: Radius.circular(12),
+                   bottomRight: Radius.circular(12),
+                 ),
+               ),
+               child: Column(
+                 crossAxisAlignment: CrossAxisAlignment.start,
+                 children: [
+                   // Translation
+                   if (widget.item.translation.isNotEmpty) ...[
+                     Container(
+                       padding: const EdgeInsets.all(12),
+                       decoration: BoxDecoration(
+                         color: Colors.white,
+                         borderRadius: BorderRadius.circular(8),
+                         border: Border.all(color: Colors.grey.shade200),
+                       ),
+                       child: Column(
+                         crossAxisAlignment: CrossAxisAlignment.start,
+                         children: [
+                           Row(
+                             children: [
+                               Icon(Icons.translate, size: 18, color: Colors.purple.shade600),
+                               const SizedBox(width: 8),
+                               Text(
+                                 'Vietnamese Translation',
+                                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                   fontWeight: FontWeight.w600,
+                                   color: Colors.purple.shade700,
+                                 ),
+                               ),
+                             ],
+                           ),
+                           const SizedBox(height: 8),
+                           Text(
+                             widget.item.translation,
+                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                               fontWeight: FontWeight.w500,
+                               color: Colors.purple.shade900,
+                             ),
+                           ),
+                         ],
+                       ),
+                     ),
+                     const SizedBox(height: 12),
+                   ],
+                   
+                   // Personal notes
+                   if (widget.item.personalNotes?.isNotEmpty == true) ...[
+                     Container(
+                       padding: const EdgeInsets.all(12),
+                       decoration: BoxDecoration(
+                         color: Colors.blue.shade50,
+                         borderRadius: BorderRadius.circular(8),
+                         border: Border.all(color: Colors.blue.shade200),
+                       ),
+                       child: Column(
+                         crossAxisAlignment: CrossAxisAlignment.start,
+                         children: [
+                           Row(
+                             children: [
+                               Icon(Icons.note, size: 18, color: Colors.blue.shade700),
+                               const SizedBox(width: 8),
+                               Text(
+                                 'Your Notes',
+                                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                   fontWeight: FontWeight.w600,
+                                   color: Colors.blue.shade700,
+                                 ),
+                               ),
+                             ],
+                           ),
+                           const SizedBox(height: 8),
+                           Text(
+                             widget.item.personalNotes!,
+                             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                               color: Colors.blue.shade900,
+                               fontSize: 16,
+                               fontWeight: FontWeight.w500,
+                               height: 1.5,
+                             ),
+                           ),
+                         ],
+                       ),
+                     ),
+                     const SizedBox(height: 12),
+                   ],
+                   
+                   // Learning stats (hidden behind ellipsis)
+                   const SizedBox(height: 8),
+                 ],
+               ),
+             ),
+           ],
         ],
       ),
     );
@@ -310,6 +317,83 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
     );
   }
 
+  void _showProgressDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.trending_up, color: Colors.green.shade700),
+            const SizedBox(width: 8),
+            const Text('Learning Progress'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Vocabulary: ${widget.item.word}',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(
+                  widget.item.reviewCount == 0 ? Icons.play_circle_outline : Icons.check_circle,
+                  color: widget.item.reviewCount == 0 ? Colors.orange : Colors.green,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  widget.item.reviewCount == 0 
+                      ? '🎯 Ready to start learning!' 
+                      : '🔥 Reviewed ${widget.item.reviewCount} time${widget.item.reviewCount == 1 ? '' : 's'}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            if (widget.item.lastReviewed != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(Icons.schedule, color: Colors.blue.shade700),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Last reviewed: ${_formatDate(widget.item.lastReviewed!)}',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ],
+            if (widget.item.difficultyRating != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(Icons.star, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Difficulty: ${_getDifficultyText(widget.item.difficultyRating!)}',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
@@ -323,5 +407,67 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
+  }
+
+  String _getDifficultyText(int rating) {
+    switch (rating) {
+      case 1:
+        return 'Very Easy';
+      case 2:
+        return 'Easy';
+      case 3:
+        return 'Medium';
+      case 4:
+        return 'Hard';
+      case 5:
+        return 'Very Hard';
+      default:
+        return 'Unknown';
+    }
+  }
+
+  void _showFunReaction(BuildContext context) {
+    final reactions = ['🎉', '🔥', '💪', '🎯', '🚀', '⭐', '💡', '🎨', '🌈', '✨'];
+    final randomReaction = reactions[DateTime.now().millisecond % reactions.length];
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$randomReaction Awesome! You\'re learning "${widget.item.word}"! $randomReaction'),
+        backgroundColor: Colors.purple,
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  void _showLearningStreak(BuildContext context) {
+    final streak = widget.item.reviewCount;
+    String message;
+    Color backgroundColor;
+    
+    if (streak == 0) {
+      message = '🚀 Start your learning journey with "${widget.item.word}"!';
+      backgroundColor = Colors.blue;
+    } else if (streak < 3) {
+      message = '🔥 Great start! You\'ve reviewed "${widget.item.word}" $streak times!';
+      backgroundColor = Colors.orange;
+    } else if (streak < 10) {
+      message = '💪 Amazing! You\'re mastering "${widget.item.word}"! ($streak reviews)';
+      backgroundColor = Colors.green;
+    } else {
+      message = '🏆 Legend! You\'ve reviewed "${widget.item.word}" $streak times!';
+      backgroundColor = Colors.purple;
+    }
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: backgroundColor,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 }

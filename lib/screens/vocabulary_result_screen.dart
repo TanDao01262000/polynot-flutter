@@ -192,16 +192,16 @@ class _VocabularyResultScreenState extends State<VocabularyResultScreen> {
                       builder: (context, userProvider, child) {
                         if (userProvider.currentUser != null) {
                           // Use interactive card for logged-in users
-                          return VocabularyInteractionCard(
-                            item: item,
-                            onFavorite: () => provider.toggleFavorite(item.id),
-                            onHide: () => provider.hideVocabulary(item.id),
-                            onRate: (rating) => provider.rateDifficulty(item.id, rating),
-                            onReview: () => provider.markAsReviewed(item.id),
-                            onAddNote: (note) => provider.addNote(item.id, note),
-                            onAddToList: (listId) => provider.addToVocabularyList(listId, item.id),
-                            personalLists: provider.personalLists,
-                          );
+                                                     return VocabularyInteractionCard(
+                             item: item,
+                             onFavorite: () => provider.toggleFavorite(item.id),
+                             onHide: () => provider.hideVocabulary(item.id),
+                             onReview: () => provider.markAsReviewed(item.id),
+                             onAddNote: (note) => provider.addNote(item.id, note),
+                             onRate: (rating) => provider.rateDifficulty(item.id, rating),
+                             onAddToList: (listId) => provider.addToVocabularyList(listId, item.id),
+                             personalLists: provider.personalLists,
+                           );
                         } else {
                           // Use basic card for non-logged-in users
                           return VocabularyItemCard(

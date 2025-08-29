@@ -531,6 +531,21 @@ class VocabularyService {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/note');
     _log('POST $uri');
+    _log('Note content: "$note"');
+    
+    // Validate note content
+    if (note.trim().isEmpty) {
+      _log('Error: Note content is empty');
+      return false;
+    }
+    
+    final requestBody = {
+      'vocab_entry_id': vocabEntryId,
+      'action': 'note',
+      'value': note.trim(),
+    };
+    
+    _log('Request body: ${jsonEncode(requestBody)}');
     
     try {
       final response = await http.post(
@@ -539,11 +554,7 @@ class VocabularyService {
           'Authorization': userUuid,
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'vocab_entry_id': vocabEntryId,
-          'action': 'note',
-          'note': note,
-        }),
+        body: jsonEncode(requestBody),
       );
 
       _log('Status: ${response.statusCode}');
@@ -561,6 +572,15 @@ class VocabularyService {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/rate');
     _log('POST $uri');
+    _log('Rating: $rating');
+    
+    final requestBody = {
+      'vocab_entry_id': vocabEntryId,
+      'action': 'rate',
+      'value': rating.toString(),
+    };
+    
+    _log('Request body: ${jsonEncode(requestBody)}');
     
     try {
       final response = await http.post(
@@ -569,11 +589,7 @@ class VocabularyService {
           'Authorization': userUuid,
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'vocab_entry_id': vocabEntryId,
-          'action': 'rate',
-          'rating': rating,
-        }),
+        body: jsonEncode(requestBody),
       );
 
       _log('Status: ${response.statusCode}');

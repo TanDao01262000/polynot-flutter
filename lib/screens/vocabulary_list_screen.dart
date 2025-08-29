@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/vocabulary_category.dart';
-import '../models/vocabulary_item.dart';
 import '../providers/vocabulary_provider.dart';
 import '../providers/user_provider.dart';
-import '../widgets/vocabulary_item_card.dart';
 import '../widgets/vocabulary_interaction_card.dart';
 
 class VocabularyListScreen extends StatefulWidget {
@@ -284,9 +282,9 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
                         item: item,
                         onFavorite: () => provider.toggleFavorite(item.id),
                         onHide: () => provider.hideVocabulary(item.id),
-                        onRate: (rating) => provider.rateDifficulty(item.id, rating),
                         onReview: () => provider.markAsReviewed(item.id),
                         onAddNote: (note) => provider.addNote(item.id, note),
+                        onRate: (rating) => provider.rateDifficulty(item.id, rating),
                         onAddToList: (listId) => provider.addToVocabularyList(listId, item.id),
                         personalLists: provider.personalLists,
                       );
