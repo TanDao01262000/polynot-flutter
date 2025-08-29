@@ -4,6 +4,8 @@ import '../models/vocabulary_category.dart';
 import '../providers/vocabulary_provider.dart';
 import '../providers/user_provider.dart';
 import '../widgets/vocabulary_interaction_card.dart';
+import '../utils/app_utils.dart';
+import 'vocabulary_generation_screen.dart';
 
 class VocabularyListScreen extends StatefulWidget {
   const VocabularyListScreen({super.key});
@@ -77,7 +79,17 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
       searchTerm: _searchController.text.isEmpty ? null : _searchController.text,
     );
     
-    await provider.getVocabularyList(request);
+    try {
+      await provider.getVocabularyList(request);
+    } catch (e) {
+      if (mounted) {
+        AppUtils.showErrorSnackBar(
+          context,
+          'Failed to load vocabulary: ${e.toString()}',
+          onRetry: _loadVocabularyList,
+        );
+      }
+    }
   }
 
   Future<void> _loadMoreVocabulary() async {
@@ -109,7 +121,13 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vocabulary List'),
+        title: Consumer<UserProvider>(
+          builder: (context, userProvider, child) {
+            return Text(userProvider.currentUser != null 
+              ? 'My Vocabulary' 
+              : 'Vocabulary List');
+          },
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
@@ -235,29 +253,52 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
                 }
 
                 if (provider.vocabularyListItems.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.book_outlined,
-                          size: 64,
-                          color: Colors.grey,
+                  return Consumer<UserProvider>(
+                    builder: (context, userProvider, child) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.book_outlined,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              userProvider.currentUser != null 
+                                ? 'No vocabulary saved yet'
+                                : 'No vocabulary found',
+                              style: Theme.of(context).textTheme.headlineSmall,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              userProvider.currentUser != null
+                                ? 'Start by generating and saving some vocabulary!'
+                                : 'Try adjusting your search or filters',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Colors.grey,
+                              ),
+                            ),
+                            if (userProvider.currentUser != null) ...[
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const VocabularyGenerationScreen(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.add),
+                                label: const Text('Generate Vocabulary'),
+                              ),
+                            ],
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No vocabulary found',
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Try adjusting your search or filters',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   );
                 }
 

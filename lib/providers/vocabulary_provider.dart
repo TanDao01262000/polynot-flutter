@@ -18,6 +18,7 @@ class VocabularyProvider extends ChangeNotifier {
   int _currentPage = 1;
   bool _hasMore = true;
   String? _currentUserId;
+  Set<String> _savingItems = {};
 
   // Getters
   List<VocabularyItem> get vocabularyItems => _vocabularyItems;
@@ -32,6 +33,12 @@ class VocabularyProvider extends ChangeNotifier {
   int get currentPage => _currentPage;
   bool get hasMore => _hasMore;
   String? get currentUserId => _currentUserId;
+  Set<String> get savingItems => _savingItems;
+
+  // Check if an item is currently being saved
+  bool isSaving(String vocabEntryId) {
+    return _savingItems.contains(vocabEntryId);
+  }
 
   // Set current user ID for authenticated requests
   void setCurrentUserId(String userId) {
@@ -271,6 +278,84 @@ class VocabularyProvider extends ChangeNotifier {
       return false;
     }
   }
+
+  // Save individual vocabulary entry
+  Future<bool> saveVocabularyEntry(String vocabEntryId) async {
+    print('Provider: Saving item with ID: $vocabEntryId');
+    
+    if (_currentUserId == null) {
+      _error = 'User must be logged in to save vocabulary';
+      notifyListeners();
+      return false;
+    }
+
+    // Add to saving items set to prevent double-save
+    if (_savingItems.contains(vocabEntryId)) {
+      print('Provider: Item already being saved');
+      return false;
+    }
+
+    _savingItems.add(vocabEntryId);
+    notifyListeners();
+
+    try {
+      // Find the vocabulary item to get its data
+      // If vocabEntryId is empty, try to find by word as fallback
+      int itemIndex;
+      if (vocabEntryId.isEmpty) {
+        print('Provider: ID is empty, this should not happen with generated IDs');
+        _savingItems.remove(vocabEntryId);
+        notifyListeners();
+        return false;
+      } else {
+        itemIndex = _vocabularyItems.indexWhere((item) => item.id == vocabEntryId);
+      }
+      
+      print('Provider: Found item at index: $itemIndex');
+      
+      if (itemIndex == -1) {
+        _error = 'Vocabulary item not found';
+        _savingItems.remove(vocabEntryId);
+        notifyListeners();
+        return false;
+      }
+
+      final item = _vocabularyItems[itemIndex];
+      print('Provider: Found item: ${item.word}, isSaved: ${item.isSaved}');
+      
+      // Don't save if already saved
+      if (item.isSaved) {
+        print('Provider: Item already saved');
+        _savingItems.remove(vocabEntryId);
+        notifyListeners();
+        return true; // Already saved
+      }
+      
+      final success = await VocabularyService.saveVocabularyEntry(vocabEntryId, _currentUserId!, item: item);
+      print('Provider: API result: $success');
+      
+      if (success) {
+        // Mark the item as saved
+        _vocabularyItems[itemIndex] = item.copyWith(isSaved: true);
+        _error = null;
+        print('Provider: Marked as saved, calling notifyListeners');
+      } else {
+        _error = 'Failed to save vocabulary entry';
+      }
+      
+      _savingItems.remove(vocabEntryId);
+      notifyListeners();
+      return success;
+    } catch (e) {
+      _error = e.toString();
+      print('Provider: Error: $e');
+      _savingItems.remove(vocabEntryId);
+      notifyListeners();
+      return false;
+    }
+  }
+
+
 
   // Helper method to update vocabulary item in both lists
   void _updateVocabularyItem(String vocabEntryId, VocabularyItem Function(VocabularyItem) updateFn) {

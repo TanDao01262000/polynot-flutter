@@ -23,6 +23,7 @@ class VocabularyItem {
   final int? difficultyRating;
   final DateTime? lastReviewed;
   final int reviewCount;
+  final bool isSaved;
 
   VocabularyItem({
     required this.id,
@@ -47,6 +48,7 @@ class VocabularyItem {
     this.difficultyRating,
     this.lastReviewed,
     this.reviewCount = 0,
+    this.isSaved = false,
   });
 
   factory VocabularyItem.fromJson(Map<String, dynamic> json) {
@@ -79,6 +81,7 @@ class VocabularyItem {
           ? DateTime.parse(json['last_reviewed']) 
           : null,
       reviewCount: json['review_count'] ?? 0,
+      isSaved: json['is_saved'] ?? false,
     );
   }
 
@@ -106,6 +109,7 @@ class VocabularyItem {
       'difficulty_rating': difficultyRating,
       'last_reviewed': lastReviewed?.toIso8601String(),
       'review_count': reviewCount,
+      'is_saved': isSaved,
     };
   }
 
@@ -132,6 +136,7 @@ class VocabularyItem {
     int? difficultyRating,
     DateTime? lastReviewed,
     int? reviewCount,
+    bool? isSaved,
   }) {
     return VocabularyItem(
       id: id ?? this.id,
@@ -156,6 +161,7 @@ class VocabularyItem {
       difficultyRating: difficultyRating ?? this.difficultyRating,
       lastReviewed: lastReviewed ?? this.lastReviewed,
       reviewCount: reviewCount ?? this.reviewCount,
+      isSaved: isSaved ?? this.isSaved,
     );
   }
 } 
