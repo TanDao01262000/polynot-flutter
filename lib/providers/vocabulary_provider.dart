@@ -58,6 +58,8 @@ class VocabularyProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
 
+    print('Provider: Loading vocabulary list with request: ${request.toJson()}');
+
     try {
       final response = await VocabularyService.getVocabularyList(
         request,
@@ -79,13 +81,33 @@ class VocabularyProvider extends ChangeNotifier {
         return null;
       }).whereType<VocabularyItem>().toList();
       
-      _vocabularyListItems.addAll(newItems);
+      // Apply client-side search filtering if backend doesn't support it
+      if (request.searchTerm != null && request.searchTerm!.isNotEmpty) {
+        print('Provider: Applying client-side search filtering for: "${request.searchTerm}"');
+        final searchTerm = request.searchTerm!.toLowerCase();
+        final filteredItems = newItems.where((item) {
+          return item.word.toLowerCase().contains(searchTerm) ||
+                 item.definition.toLowerCase().contains(searchTerm) ||
+                 item.translation.toLowerCase().contains(searchTerm) ||
+                 item.example.toLowerCase().contains(searchTerm);
+        }).toList();
+        
+        print('Provider: Filtered ${newItems.length} items to ${filteredItems.length} items');
+        _vocabularyListItems.addAll(filteredItems);
+      } else {
+        _vocabularyListItems.addAll(newItems);
+      }
+      
       _currentPage = response.page;
       _hasMore = response.hasMore;
       _error = null;
+      
+      print('Provider: Loaded ${newItems.length} items. Total: ${_vocabularyListItems.length}');
+      print('Provider: Response success: ${response.success}, message: ${response.message}');
     } catch (e) {
       _error = e.toString();
       _lastListResponse = null;
+      print('Provider: Error loading vocabulary list: $e');
     } finally {
       _isLoadingList = false;
       notifyListeners();

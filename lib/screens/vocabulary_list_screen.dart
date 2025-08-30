@@ -6,6 +6,7 @@ import '../providers/user_provider.dart';
 import '../widgets/vocabulary_interaction_card.dart';
 import '../utils/app_utils.dart';
 import 'vocabulary_generation_screen.dart';
+import 'dart:async';
 
 class VocabularyListScreen extends StatefulWidget {
   const VocabularyListScreen({super.key});
@@ -25,6 +26,7 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
   bool _showHidden = false;
   
   bool _hasInitialized = false;
+  Timer? _searchDebounceTimer;
 
   @override
   void initState() {
@@ -39,6 +41,7 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
   void dispose() {
     _searchController.dispose();
     _scrollController.dispose();
+    _searchDebounceTimer?.cancel();
     super.dispose();
   }
 
@@ -67,7 +70,24 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
   }
 
   Future<void> _loadVocabularyList() async {
+    print('📚 === LOAD VOCABULARY LIST START ===');
+    print('📚 Method called');
+    
     final provider = Provider.of<VocabularyProvider>(context, listen: false);
+    print('📚 Provider obtained');
+    
+    final searchTerm = _searchController.text.trim();
+    print('📚 Search term: "$searchTerm"');
+    print('📚 Search term length: ${searchTerm.length}');
+    print('📚 Search term is empty: ${searchTerm.isEmpty}');
+    
+    print('📚 Current filters:');
+    print('📚   - category: $_selectedCategory');
+    print('📚   - topic: $_selectedTopic');
+    print('📚   - level: $_selectedLevel');
+    print('📚   - favorites: $_showFavoritesOnly');
+    print('📚   - hidden: $_showHidden');
+    
     final request = VocabularyListRequest(
       page: 1,
       limit: 20,
@@ -76,20 +96,33 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
       topicName: _selectedTopic,
       categoryName: _selectedCategory,
       level: _selectedLevel,
-      searchTerm: _searchController.text.isEmpty ? null : _searchController.text,
+      searchTerm: searchTerm.isEmpty ? null : searchTerm,
     );
     
+    print('📚 Request created');
+    print('📚 Request JSON: ${request.toJson()}');
+    
     try {
+      print('📚 Calling provider.getVocabularyList...');
       await provider.getVocabularyList(request);
+      print('📚 Provider.getVocabularyList completed successfully');
+      print('📚 Current items count: ${provider.vocabularyListItems.length}');
     } catch (e) {
+      print('📚 ❌ ERROR in _loadVocabularyList: $e');
+      print('📚 Error type: ${e.runtimeType}');
+      print('📚 Error stack trace: ${StackTrace.current}');
       if (mounted) {
+        print('📚 Widget is mounted, showing error snackbar');
         AppUtils.showErrorSnackBar(
           context,
           'Failed to load vocabulary: ${e.toString()}',
           onRetry: _loadVocabularyList,
         );
+      } else {
+        print('📚 Widget is NOT mounted, skipping error snackbar');
       }
     }
+    print('📚 === LOAD VOCABULARY LIST END ===');
   }
 
   Future<void> _loadMoreVocabulary() async {
@@ -102,19 +135,42 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
       topicName: _selectedTopic,
       categoryName: _selectedCategory,
       level: _selectedLevel,
-      searchTerm: _searchController.text.isEmpty ? null : _searchController.text,
+      searchTerm: _searchController.text.trim().isEmpty ? null : _searchController.text.trim(),
     );
     
     await provider.loadMoreVocabulary(request);
   }
 
   void _onSearchChanged(String value) {
-    // Debounce search
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted && _searchController.text == value) {
+    print('🔍 === SEARCH DEBUG START ===');
+    print('🔍 Search changed called with value: "$value"');
+    print('🔍 Search controller text: "${_searchController.text}"');
+    print('🔍 Search controller text length: ${_searchController.text.length}');
+    print('🔍 Widget mounted: $mounted');
+    
+    // Cancel previous timer
+    if (_searchDebounceTimer != null) {
+      print('🔍 Cancelling previous timer');
+      _searchDebounceTimer?.cancel();
+    } else {
+      print('🔍 No previous timer to cancel');
+    }
+    
+    // Set new timer for debounced search
+    print('🔍 Setting new timer for 500ms');
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+      print('🔍 === TIMER EXPIRED ===');
+      print('🔍 Timer expired, checking if widget is mounted');
+      print('🔍 Widget mounted: $mounted');
+      if (mounted) {
+        print('🔍 Widget is mounted, calling _loadVocabularyList');
         _loadVocabularyList();
+      } else {
+        print('🔍 Widget is NOT mounted, skipping _loadVocabularyList');
       }
     });
+    print('🔍 Timer set successfully');
+    print('🔍 === SEARCH DEBUG END ===');
   }
 
   @override
@@ -157,6 +213,7 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
                         icon: const Icon(Icons.clear),
                         onPressed: () {
                           _searchController.clear();
+                          _searchDebounceTimer?.cancel();
                           _loadVocabularyList();
                         },
                       )
@@ -201,6 +258,36 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
                     }),
                 ],
               ),
+            ),
+          ],
+
+          // Search results indicator
+          if (_searchController.text.trim().isNotEmpty) ...[
+            Consumer<VocabularyProvider>(
+              builder: (context, provider, child) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      Icon(Icons.search, size: 16, color: Colors.grey.shade600),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Search results for "${_searchController.text.trim()}" (${provider.vocabularyListItems.length} items)',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (provider.isLoadingList)
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
 
@@ -306,7 +393,12 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
                   onRefresh: _loadVocabularyList,
                   child: ListView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.only(
+                      left: 16,
+                      right: 16,
+                      top: 16,
+                      bottom: 80, // Add bottom padding to prevent FAB overlap
+                    ),
                     itemCount: provider.vocabularyListItems.length + (provider.hasMore ? 1 : 0),
                     itemBuilder: (context, index) {
                       if (index == provider.vocabularyListItems.length) {
@@ -319,15 +411,18 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
                       }
 
                       final item = provider.vocabularyListItems[index];
-                      return VocabularyInteractionCard(
-                        item: item,
-                        onFavorite: () => provider.toggleFavorite(item.id),
-                        onHide: () => provider.hideVocabulary(item.id),
-                        onReview: () => provider.markAsReviewed(item.id),
-                        onAddNote: (note) => provider.addNote(item.id, note),
-                        onRate: (rating) => provider.rateDifficulty(item.id, rating),
-                        onAddToList: (listId) => provider.addToVocabularyList(listId, item.id),
-                        personalLists: provider.personalLists,
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: VocabularyInteractionCard(
+                          item: item,
+                          onFavorite: () => provider.toggleFavorite(item.id),
+                          onHide: () => provider.hideVocabulary(item.id),
+                          onReview: () => provider.markAsReviewed(item.id),
+                          onAddNote: (note) => provider.addNote(item.id, note),
+                          onRate: (rating) => provider.rateDifficulty(item.id, rating),
+                          onAddToList: (listId) => provider.addToVocabularyList(listId, item.id),
+                          personalLists: provider.personalLists,
+                        ),
                       );
                     },
                   ),

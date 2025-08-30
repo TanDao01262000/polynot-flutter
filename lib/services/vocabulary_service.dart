@@ -451,8 +451,11 @@ class VocabularyService {
       endpoint = '/vocab/list';
     }
     
+    final requestJson = request.toJson();
+    _log('Request JSON: $requestJson');
+    
     final uri = Uri.parse('$baseUrl$endpoint').replace(
-      queryParameters: request.toJson().map((key, value) => MapEntry(key, value.toString())),
+      queryParameters: requestJson.map((key, value) => MapEntry(key, value.toString())),
     );
     _log('GET $uri');
     
@@ -474,7 +477,7 @@ class VocabularyService {
         // If user-specific endpoint doesn't exist, fall back to general endpoint
         _log('User-specific endpoint not found, falling back to general endpoint');
         final fallbackUri = Uri.parse('$baseUrl/vocab/list').replace(
-          queryParameters: request.toJson().map((key, value) => MapEntry(key, value.toString())),
+          queryParameters: requestJson.map((key, value) => MapEntry(key, value.toString())),
         );
         final fallbackResponse = await http.get(fallbackUri, headers: headers);
         _log('Fallback Status: ${fallbackResponse.statusCode}');
@@ -714,7 +717,9 @@ class VocabularyService {
       _log('Error: $e');
       return [];
     }
-  }
+  
+
+}
 
   // Add vocabulary to list
   static Future<bool> addToVocabularyList(String listId, String vocabEntryId, String userUuid) async {
