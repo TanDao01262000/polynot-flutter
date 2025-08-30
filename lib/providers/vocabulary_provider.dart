@@ -15,6 +15,7 @@ class VocabularyProvider extends ChangeNotifier {
   VocabularyRequest? _currentRequest;
   GenerateResponse? _lastResponse;
   VocabularyListResponse? _lastListResponse;
+  VocabularyListRequest? _lastListRequest;
   int _currentPage = 1;
   bool _hasMore = true;
   String? _currentUserId;
@@ -67,6 +68,7 @@ class VocabularyProvider extends ChangeNotifier {
       );
       
       _lastListResponse = response;
+      _lastListRequest = request;
       
       if (request.page == 1) {
         // Reset list for first page
@@ -82,6 +84,7 @@ class VocabularyProvider extends ChangeNotifier {
       }).whereType<VocabularyItem>().toList();
       
       // Apply client-side search filtering if backend doesn't support it
+      List<VocabularyItem> itemsToAdd;
       if (request.searchTerm != null && request.searchTerm!.isNotEmpty) {
         print('Provider: Applying client-side search filtering for: "${request.searchTerm}"');
         final searchTerm = request.searchTerm!.toLowerCase();
@@ -93,10 +96,25 @@ class VocabularyProvider extends ChangeNotifier {
         }).toList();
         
         print('Provider: Filtered ${newItems.length} items to ${filteredItems.length} items');
-        _vocabularyListItems.addAll(filteredItems);
+        itemsToAdd = filteredItems;
       } else {
-        _vocabularyListItems.addAll(newItems);
+        itemsToAdd = newItems;
       }
+      
+      // Add items to the list
+      _vocabularyListItems.addAll(itemsToAdd);
+      
+      // Sort the entire list: non-hidden items first, then alphabetically by word
+      _vocabularyListItems.sort((a, b) {
+        // First sort by hidden status (non-hidden items first)
+        if (a.isHidden != b.isHidden) {
+          return a.isHidden ? 1 : -1; // false (non-hidden) comes before true (hidden)
+        }
+        // Then sort alphabetically by word
+        return a.word.toLowerCase().compareTo(b.word.toLowerCase());
+      });
+      
+      print('Provider: Sorted vocabulary list (${_vocabularyListItems.length} items)');
       
       _currentPage = response.page;
       _hasMore = response.hasMore;
@@ -156,17 +174,45 @@ class VocabularyProvider extends ChangeNotifier {
     if (_currentUserId == null) return false;
 
     try {
+      print('Provider: Hiding vocabulary item: $vocabEntryId');
       final success = await VocabularyService.hideVocabulary(vocabEntryId, _currentUserId!, hiddenUntil: hiddenUntil);
       if (success) {
-        // Update local state
-        _updateVocabularyItem(vocabEntryId, (item) => item.copyWith(
-          isHidden: !item.isHidden,
-          hiddenUntil: hiddenUntil,
-        ));
-        notifyListeners();
+        print('Provider: Hide successful, reloading vocabulary list...');
+        // Reload the vocabulary list to reflect the hidden status
+        // This ensures the UI updates correctly based on current filters
+        await _reloadCurrentVocabularyList();
+        print('Provider: Vocabulary list reloaded after hiding');
+      } else {
+        print('Provider: Hide failed');
       }
       return success;
     } catch (e) {
+      print('Provider: Error hiding vocabulary: $e');
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Unhide vocabulary
+  Future<bool> unhideVocabulary(String vocabEntryId) async {
+    if (_currentUserId == null) return false;
+
+    try {
+      print('Provider: Unhiding vocabulary item: $vocabEntryId');
+      final success = await VocabularyService.unhideVocabulary(vocabEntryId, _currentUserId!);
+      if (success) {
+        print('Provider: Unhide successful, reloading vocabulary list...');
+        // Reload the vocabulary list to reflect the unhidden status
+        // The sorting will automatically place non-hidden items at the top
+        await _reloadCurrentVocabularyList();
+        print('Provider: Vocabulary list reloaded and sorted after unhiding');
+      } else {
+        print('Provider: Unhide failed');
+      }
+      return success;
+    } catch (e) {
+      print('Provider: Error unhiding vocabulary: $e');
       _error = e.toString();
       notifyListeners();
       return false;
@@ -521,5 +567,43 @@ class VocabularyProvider extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+
+
+  // Reload the current vocabulary list with the same parameters
+  Future<void> _reloadCurrentVocabularyList() async {
+    if (_currentUserId == null) return;
+
+    try {
+      print('Provider: Reloading vocabulary list...');
+      // Reset to first page and reload with the last known request
+      _currentPage = 1;
+      _vocabularyListItems = [];
+      
+      if (_lastListRequest != null) {
+        print('Provider: Using last request parameters: ${_lastListRequest!.toJson()}');
+        // Create a new request with the same parameters but page 1
+        final reloadRequest = VocabularyListRequest(
+          page: 1,
+          limit: _lastListRequest!.limit,
+          showFavoritesOnly: _lastListRequest!.showFavoritesOnly,
+          showHidden: _lastListRequest!.showHidden,
+          topicName: _lastListRequest!.topicName,
+          categoryName: _lastListRequest!.categoryName,
+          level: _lastListRequest!.level,
+          searchTerm: _lastListRequest!.searchTerm,
+        );
+        
+        await getVocabularyList(reloadRequest);
+        print('Provider: Vocabulary list reload completed');
+      } else {
+        print('Provider: No last request available for reload');
+      }
+    } catch (e) {
+      print('Provider: Error reloading vocabulary list: $e');
+      _error = e.toString();
+      notifyListeners();
+    }
   }
 } 

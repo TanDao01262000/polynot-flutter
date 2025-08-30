@@ -416,7 +416,9 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
                         child: VocabularyInteractionCard(
                           item: item,
                           onFavorite: () => provider.toggleFavorite(item.id),
-                          onHide: () => provider.hideVocabulary(item.id),
+                          onHide: () => item.isHidden 
+                              ? provider.unhideVocabulary(item.id)
+                              : provider.hideVocabulary(item.id),
                           onReview: () => provider.markAsReviewed(item.id),
                           onAddNote: (note) => provider.addNote(item.id, note),
                           onRate: (rating) => provider.rateDifficulty(item.id, rating),
@@ -478,6 +480,13 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
         showFavoritesOnly: _showFavoritesOnly,
         showHidden: _showHidden,
         onApply: (category, topic, level, favorites, hidden) {
+          print('🔍 Filter applied:');
+          print('🔍   - showHidden: $hidden (was: $_showHidden)');
+          print('🔍   - showFavoritesOnly: $favorites');
+          print('🔍   - category: $category');
+          print('🔍   - topic: $topic');
+          print('🔍   - level: $level');
+          
           setState(() {
             _selectedCategory = category;
             _selectedTopic = topic;

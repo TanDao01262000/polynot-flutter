@@ -551,6 +551,39 @@ class VocabularyService {
     }
   }
 
+  // Unhide vocabulary
+  static Future<bool> unhideVocabulary(String vocabEntryId, String userUuid) async {
+    _log('Base URL: $baseUrl');
+    final uri = Uri.parse('$baseUrl/vocab/hide');
+    _log('POST $uri (unhide)');
+    
+    final requestBody = {
+      'vocab_entry_id': vocabEntryId,
+      'action': 'unhide', // Use 'unhide' action now that backend supports it
+    };
+    
+    _log('Request body: ${jsonEncode(requestBody)}');
+    
+    try {
+      final response = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $userUuid',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      _log('Status: ${response.statusCode}');
+      _log('Response: ${_trimBody(response.body)}');
+
+      return response.statusCode == 200;
+    } catch (e) {
+      _log('Error: $e');
+      return false;
+    }
+  }
+
   // Add personal notes
   static Future<bool> addNote(String vocabEntryId, String userUuid, String note) async {
     _log('Base URL: $baseUrl');
