@@ -689,6 +689,39 @@ class VocabularyService {
     }
   }
 
+  // Unmark as reviewed
+  static Future<bool> unmarkAsReviewed(String vocabEntryId, String userUuid) async {
+    _log('Base URL: $baseUrl');
+    final uri = Uri.parse('$baseUrl/vocab/review/undo');
+    _log('POST $uri (unmark reviewed)');
+    
+    final requestBody = {
+      'vocab_entry_id': vocabEntryId,
+      'action': 'undo', // Use 'undo' action for the review/undo endpoint
+    };
+    
+    _log('Request body: ${jsonEncode(requestBody)}');
+    
+    try {
+      final response = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $userUuid',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      _log('Status: ${response.statusCode}');
+      _log('Response: ${_trimBody(response.body)}');
+
+      return response.statusCode == 200;
+    } catch (e) {
+      _log('Error: $e');
+      return false;
+    }
+  }
+
   // Create vocabulary list
   static Future<VocabularyPersonalList?> createVocabularyList(
     CreateVocabularyListRequest request,

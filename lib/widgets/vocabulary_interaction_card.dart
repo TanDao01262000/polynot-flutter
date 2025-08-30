@@ -3,7 +3,7 @@ import '../models/vocabulary_item.dart';
 import '../models/vocabulary_category.dart';
 import '../widgets/vocabulary_item_card.dart';
 
-class VocabularyInteractionCard extends StatefulWidget {
+class VocabularyInteractionCard extends StatelessWidget {
   final VocabularyItem item;
   final VoidCallback onFavorite;
   final VoidCallback onHide;
@@ -26,20 +26,13 @@ class VocabularyInteractionCard extends StatefulWidget {
   });
 
   @override
-  State<VocabularyInteractionCard> createState() => _VocabularyInteractionCardState();
-}
-
-class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
-  bool _isExpanded = false;
-
-  @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 1,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: widget.item.isFavorite 
+        side: item.isFavorite 
             ? BorderSide(color: Colors.orange.shade300, width: 3)
             : BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.3)),
       ),
@@ -47,11 +40,9 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
         children: [
           // Main vocabulary card
           VocabularyItemCard(
-            item: widget.item,
+            item: item,
             onTap: () {
-              setState(() {
-                _isExpanded = !_isExpanded;
-              });
+              // Handle expansion in parent widget if needed
             },
             onProgressTap: () => _showProgressDialog(context),
           ),
@@ -73,24 +64,24 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
                   children: [
                     // Favorite button
                     IconButton(
-                      onPressed: widget.onFavorite,
+                      onPressed: onFavorite,
                       icon: Icon(
-                        widget.item.isFavorite ? Icons.favorite : Icons.favorite_border,
-                        color: widget.item.isFavorite ? Colors.red : Colors.grey.shade600,
+                        item.isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: item.isFavorite ? Colors.red : Colors.grey.shade600,
                         size: 24,
                       ),
-                      tooltip: widget.item.isFavorite ? 'Remove from favorites' : 'Add to favorites',
+                      tooltip: item.isFavorite ? 'Remove from favorites' : 'Add to favorites',
                     ),
                     
                     // Review button
                     IconButton(
-                      onPressed: widget.onReview,
+                      onPressed: onReview,
                       icon: Icon(
-                        widget.item.lastReviewed != null ? Icons.check_circle : Icons.check_circle_outline,
-                        color: widget.item.lastReviewed != null ? Colors.green : Colors.grey.shade600,
+                        item.lastReviewed != null ? Icons.check_circle : Icons.check_circle_outline,
+                        color: item.lastReviewed != null ? Colors.green : Colors.grey.shade600,
                         size: 24,
                       ),
-                      tooltip: 'Mark as reviewed',
+                      tooltip: item.lastReviewed != null ? 'Unmark as reviewed' : 'Mark as reviewed',
                     ),
                   ],
                 ),
@@ -102,41 +93,41 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
                   children: [
                     // Hide button
                     IconButton(
-                      onPressed: widget.onHide,
+                      onPressed: onHide,
                       icon: Icon(
-                        widget.item.isHidden ? Icons.visibility_off : Icons.visibility,
-                        color: widget.item.isHidden ? Colors.orange : Colors.grey.shade600,
+                        item.isHidden ? Icons.visibility_off : Icons.visibility,
+                        color: item.isHidden ? Colors.orange : Colors.grey.shade600,
                         size: 20,
                       ),
-                      tooltip: widget.item.isHidden ? 'Show item' : 'Hide item',
+                      tooltip: item.isHidden ? 'Show item' : 'Hide item',
                     ),
                     
                     // Notes button
                     IconButton(
                       onPressed: () => _showNotesDialog(context),
                       icon: Icon(
-                        widget.item.personalNotes?.isNotEmpty == true 
+                        item.personalNotes?.isNotEmpty == true 
                             ? Icons.note 
                             : Icons.note_outlined,
-                        color: widget.item.personalNotes?.isNotEmpty == true ? Colors.blue : Colors.grey.shade600,
+                        color: item.personalNotes?.isNotEmpty == true ? Colors.blue : Colors.grey.shade600,
                         size: 20,
                       ),
                       tooltip: 'Add notes',
                     ),
                     
                     // Rate difficulty button
-                    if (widget.onRate != null)
+                    if (onRate != null)
                       PopupMenuButton<int>(
                         icon: Icon(
-                          widget.item.difficultyRating != null ? Icons.star : Icons.star_outline,
+                          item.difficultyRating != null ? Icons.star : Icons.star_outline,
                           size: 20,
-                          color: widget.item.difficultyRating != null ? Colors.amber : Colors.grey.shade600,
+                          color: item.difficultyRating != null ? Colors.amber : Colors.grey.shade600,
                         ),
                         tooltip: 'Rate difficulty',
-                        onSelected: widget.onRate,
+                        onSelected: onRate,
                         itemBuilder: (context) => List.generate(5, (index) {
                           final rating = index + 1;
-                          final isSelected = widget.item.difficultyRating == rating;
+                          final isSelected = item.difficultyRating == rating;
                           return PopupMenuItem(
                             value: rating,
                             child: Row(
@@ -155,12 +146,12 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
                       ),
                     
                     // Add to list button
-                    if (widget.personalLists.isNotEmpty)
+                    if (personalLists.isNotEmpty)
                       PopupMenuButton<String>(
                         icon: Icon(Icons.bookmark_add, size: 20, color: Colors.grey.shade600),
                         tooltip: 'Add to list',
-                        onSelected: widget.onAddToList,
-                        itemBuilder: (context) => widget.personalLists.map((list) {
+                        onSelected: onAddToList,
+                        itemBuilder: (context) => personalLists.map((list) {
                           return PopupMenuItem(
                             value: list.id,
                             child: Row(
@@ -179,10 +170,9 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
             ),
           ),
           
-                     // Expanded content (simplified)
-           if (_isExpanded) ...[
-             Container(
-               padding: const EdgeInsets.all(16),
+          // Expanded content (simplified)
+          Container(
+            padding: const EdgeInsets.all(16),
                decoration: BoxDecoration(
                  color: Colors.grey.shade50,
                  borderRadius: const BorderRadius.only(
@@ -194,7 +184,7 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
                  crossAxisAlignment: CrossAxisAlignment.start,
                  children: [
                    // Translation
-                   if (widget.item.translation.isNotEmpty) ...[
+                   if (item.translation.isNotEmpty) ...[
                      Container(
                        padding: const EdgeInsets.all(12),
                        decoration: BoxDecoration(
@@ -220,7 +210,7 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
                            ),
                            const SizedBox(height: 8),
                            Text(
-                             widget.item.translation,
+                             item.translation,
                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                fontWeight: FontWeight.w500,
                                color: Colors.purple.shade900,
@@ -233,7 +223,7 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
                    ],
                    
                    // Personal notes
-                   if (widget.item.personalNotes?.isNotEmpty == true) ...[
+                   if (item.personalNotes?.isNotEmpty == true) ...[
                      Container(
                        padding: const EdgeInsets.all(12),
                        decoration: BoxDecoration(
@@ -259,7 +249,7 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
                            ),
                            const SizedBox(height: 8),
                            Text(
-                             widget.item.personalNotes!,
+                             item.personalNotes!,
                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                color: Colors.blue.shade900,
                                fontSize: 16,
@@ -278,14 +268,13 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
                  ],
                ),
              ),
-           ],
         ],
       ),
     );
   }
 
   void _showNotesDialog(BuildContext context) {
-    final noteController = TextEditingController(text: widget.item.personalNotes ?? '');
+    final noteController = TextEditingController(text: item.personalNotes ?? '');
     
     showDialog(
       context: context,
@@ -307,7 +296,7 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
           ),
           ElevatedButton(
             onPressed: () {
-              widget.onAddNote(noteController.text.trim());
+              onAddNote(noteController.text.trim());
               Navigator.pop(context);
             },
             child: const Text('Save'),
@@ -333,7 +322,7 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Vocabulary: ${widget.item.word}',
+              'Vocabulary: ${item.word}',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -342,41 +331,41 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
             Row(
               children: [
                 Icon(
-                  widget.item.reviewCount == 0 ? Icons.play_circle_outline : Icons.check_circle,
-                  color: widget.item.reviewCount == 0 ? Colors.orange : Colors.green,
+                  item.reviewCount == 0 ? Icons.play_circle_outline : Icons.check_circle,
+                  color: item.reviewCount == 0 ? Colors.orange : Colors.green,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  widget.item.reviewCount == 0 
+                  item.reviewCount == 0 
                       ? '🎯 Ready to start learning!' 
-                      : '🔥 Reviewed ${widget.item.reviewCount} time${widget.item.reviewCount == 1 ? '' : 's'}',
+                      : '🔥 Reviewed ${item.reviewCount} time${item.reviewCount == 1 ? '' : 's'}',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
-            if (widget.item.lastReviewed != null) ...[
+            if (item.lastReviewed != null) ...[
               const SizedBox(height: 12),
               Row(
                 children: [
                   Icon(Icons.schedule, color: Colors.blue.shade700),
                   const SizedBox(width: 8),
                   Text(
-                    'Last reviewed: ${_formatDate(widget.item.lastReviewed!)}',
+                    'Last reviewed: ${_formatDate(item.lastReviewed!)}',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ],
               ),
             ],
-            if (widget.item.difficultyRating != null) ...[
+            if (item.difficultyRating != null) ...[
               const SizedBox(height: 12),
               Row(
                 children: [
                   Icon(Icons.star, color: Colors.amber),
                   const SizedBox(width: 8),
                   Text(
-                    'Difficulty: ${_getDifficultyText(widget.item.difficultyRating!)}',
+                    'Difficulty: ${_getDifficultyText(item.difficultyRating!)}',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ],
@@ -432,7 +421,7 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
     
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$randomReaction Awesome! You\'re learning "${widget.item.word}"! $randomReaction'),
+        content: Text('$randomReaction Awesome! You\'re learning "${item.word}"! $randomReaction'),
         backgroundColor: Colors.purple,
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
@@ -442,21 +431,21 @@ class _VocabularyInteractionCardState extends State<VocabularyInteractionCard> {
   }
 
   void _showLearningStreak(BuildContext context) {
-    final streak = widget.item.reviewCount;
+    final streak = item.reviewCount;
     String message;
     Color backgroundColor;
     
     if (streak == 0) {
-      message = '🚀 Start your learning journey with "${widget.item.word}"!';
+      message = '🚀 Start your learning journey with "${item.word}"!';
       backgroundColor = Colors.blue;
     } else if (streak < 3) {
-      message = '🔥 Great start! You\'ve reviewed "${widget.item.word}" $streak times!';
+      message = '🔥 Great start! You\'ve reviewed "${item.word}" $streak times!';
       backgroundColor = Colors.orange;
     } else if (streak < 10) {
-      message = '💪 Amazing! You\'re mastering "${widget.item.word}"! ($streak reviews)';
+      message = '💪 Amazing! You\'re mastering "${item.word}"! ($streak reviews)';
       backgroundColor = Colors.green;
     } else {
-      message = '🏆 Legend! You\'ve reviewed "${widget.item.word}" $streak times!';
+      message = '🏆 Legend! You\'ve reviewed "${item.word}" $streak times!';
       backgroundColor = Colors.purple;
     }
     

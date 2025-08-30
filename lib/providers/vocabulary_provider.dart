@@ -177,11 +177,35 @@ class VocabularyProvider extends ChangeNotifier {
       print('Provider: Hiding vocabulary item: $vocabEntryId');
       final success = await VocabularyService.hideVocabulary(vocabEntryId, _currentUserId!, hiddenUntil: hiddenUntil);
       if (success) {
-        print('Provider: Hide successful, reloading vocabulary list...');
-        // Reload the vocabulary list to reflect the hidden status
-        // This ensures the UI updates correctly based on current filters
-        await _reloadCurrentVocabularyList();
-        print('Provider: Vocabulary list reloaded after hiding');
+        print('Provider: Hide successful, updating local state...');
+        
+        // Find the item before update
+        final beforeItem = _vocabularyListItems.firstWhere((item) => item.id == vocabEntryId);
+        print('Provider: Before hide - isHidden: ${beforeItem.isHidden}');
+        
+        // Update local state immediately
+        _updateVocabularyItem(vocabEntryId, (item) => item.copyWith(isHidden: true));
+        
+        // If we're not showing hidden items, remove the item from the current list
+        if (_lastListRequest?.showHidden == false) {
+          print('Provider: Removing hidden item from list since showHidden is false');
+          _vocabularyListItems.removeWhere((item) => item.id == vocabEntryId);
+          print('Provider: Item removed from list. New count: ${_vocabularyListItems.length}');
+        } else {
+          // If we're showing all items (hidden + non-hidden), move the hidden item to the bottom
+          print('Provider: Moving hidden item to bottom of list (showing all items)');
+          final item = _vocabularyListItems.firstWhere((item) => item.id == vocabEntryId);
+          _vocabularyListItems.removeWhere((item) => item.id == vocabEntryId);
+          _vocabularyListItems.add(item); // Add to the end (bottom)
+          print('Provider: Item moved to bottom. New count: ${_vocabularyListItems.length}');
+          
+          // Find the item after update to verify the change
+          final afterItem = _vocabularyListItems.firstWhere((item) => item.id == vocabEntryId);
+          print('Provider: After hide - isHidden: ${afterItem.isHidden}');
+        }
+        
+        notifyListeners();
+        print('Provider: Local state updated after hiding');
       } else {
         print('Provider: Hide failed');
       }
@@ -202,11 +226,46 @@ class VocabularyProvider extends ChangeNotifier {
       print('Provider: Unhiding vocabulary item: $vocabEntryId');
       final success = await VocabularyService.unhideVocabulary(vocabEntryId, _currentUserId!);
       if (success) {
-        print('Provider: Unhide successful, reloading vocabulary list...');
-        // Reload the vocabulary list to reflect the unhidden status
-        // The sorting will automatically place non-hidden items at the top
-        await _reloadCurrentVocabularyList();
-        print('Provider: Vocabulary list reloaded and sorted after unhiding');
+        print('Provider: Unhide successful, updating local state...');
+        
+        // Find the item before update
+        final beforeItem = _vocabularyListItems.firstWhere((item) => item.id == vocabEntryId);
+        print('Provider: Before unhide - isHidden: ${beforeItem.isHidden}');
+        
+        // Update local state immediately
+        _updateVocabularyItem(vocabEntryId, (item) => item.copyWith(isHidden: false));
+        
+        // Find the item after update
+        try {
+          final afterItem = _vocabularyListItems.firstWhere((item) => item.id == vocabEntryId);
+          print('Provider: After unhide - isHidden: ${afterItem.isHidden}');
+          
+          // If we're showing all items (hidden + non-hidden), move the unhidden item to the top
+          if (_lastListRequest?.showHidden == true) {
+            print('Provider: Moving unhidden item to top of list (showing all items)');
+            final item = _vocabularyListItems.firstWhere((item) => item.id == vocabEntryId);
+            _vocabularyListItems.removeWhere((item) => item.id == vocabEntryId);
+            _vocabularyListItems.insert(0, item);
+            print('Provider: Item moved to top. New count: ${_vocabularyListItems.length}');
+          } else {
+            // If we're only showing non-hidden items, the item should already be visible
+            // and we don't need to do anything special
+            print('Provider: Item already visible in non-hidden items list');
+          }
+        } catch (e) {
+          print('Provider: Item not found in current list after unhide - this is expected if we removed it when hiding');
+          
+          // If we're not showing hidden items and the item was removed when hiding,
+          // we need to reload the list to get the updated item back
+          if (_lastListRequest?.showHidden == false) {
+            print('Provider: Reloading list to get unhidden item back');
+            await _reloadCurrentVocabularyList();
+            print('Provider: List reloaded after unhide');
+          }
+        }
+        
+        notifyListeners();
+        print('Provider: Local state updated after unhiding');
       } else {
         print('Provider: Unhide failed');
       }
@@ -275,6 +334,49 @@ class VocabularyProvider extends ChangeNotifier {
       }
       return success;
     } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Unmark as reviewed
+  Future<bool> unmarkAsReviewed(String vocabEntryId) async {
+    if (_currentUserId == null) return false;
+
+    try {
+      print('Provider: Unmarking as reviewed: $vocabEntryId');
+      final success = await VocabularyService.unmarkAsReviewed(vocabEntryId, _currentUserId!);
+      if (success) {
+        print('Provider: API call successful, updating local state...');
+        
+        // Find the item before update
+        final beforeItem = _vocabularyListItems.firstWhere((item) => item.id == vocabEntryId);
+        print('Provider: Before update - lastReviewed: ${beforeItem.lastReviewed}, reviewCount: ${beforeItem.reviewCount}');
+        
+        // Update local state - explicitly set lastReviewed to null
+        _updateVocabularyItem(vocabEntryId, (item) {
+          final newReviewCount = item.reviewCount > 0 ? item.reviewCount - 1 : 0;
+          print('Provider: Creating new item with lastReviewed: null, reviewCount: $newReviewCount');
+          return item.copyWithNull(
+            lastReviewed: null,
+            reviewCount: newReviewCount,
+          );
+        });
+        
+        // Find the item after update
+        final afterItem = _vocabularyListItems.firstWhere((item) => item.id == vocabEntryId);
+        print('Provider: After update - lastReviewed: ${afterItem.lastReviewed}, reviewCount: ${afterItem.reviewCount}');
+        
+        print('Provider: Calling notifyListeners()...');
+        notifyListeners();
+        print('Provider: Successfully unmarked as reviewed');
+      } else {
+        print('Provider: Failed to unmark as reviewed');
+      }
+      return success;
+    } catch (e) {
+      print('Provider: Error unmarking as reviewed: $e');
       _error = e.toString();
       notifyListeners();
       return false;
@@ -427,16 +529,25 @@ class VocabularyProvider extends ChangeNotifier {
 
   // Helper method to update vocabulary item in both lists
   void _updateVocabularyItem(String vocabEntryId, VocabularyItem Function(VocabularyItem) updateFn) {
+    print('Provider: _updateVocabularyItem called for: $vocabEntryId');
+    
     // Update in generated items list
     final generatedIndex = _vocabularyItems.indexWhere((item) => item.id == vocabEntryId);
     if (generatedIndex != -1) {
+      print('Provider: Updating generated item at index: $generatedIndex');
       _vocabularyItems[generatedIndex] = updateFn(_vocabularyItems[generatedIndex]);
     }
 
     // Update in list items
     final listIndex = _vocabularyListItems.indexWhere((item) => item.id == vocabEntryId);
     if (listIndex != -1) {
+      print('Provider: Updating list item at index: $listIndex');
+      final oldItem = _vocabularyListItems[listIndex];
       _vocabularyListItems[listIndex] = updateFn(_vocabularyListItems[listIndex]);
+      final newItem = _vocabularyListItems[listIndex];
+      print('Provider: Item updated - isHidden: ${oldItem.isHidden} -> ${newItem.isHidden}');
+    } else {
+      print('Provider: Item not found in list items: $vocabEntryId');
     }
   }
 

@@ -419,7 +419,18 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
                           onHide: () => item.isHidden 
                               ? provider.unhideVocabulary(item.id)
                               : provider.hideVocabulary(item.id),
-                          onReview: () => provider.markAsReviewed(item.id),
+                          onReview: () {
+                            // Get the current item state from the provider
+                            final currentItem = provider.vocabularyListItems.firstWhere(
+                              (i) => i.id == item.id,
+                              orElse: () => item,
+                            );
+                            if (currentItem.lastReviewed != null) {
+                              provider.unmarkAsReviewed(item.id);
+                            } else {
+                              provider.markAsReviewed(item.id);
+                            }
+                          },
                           onAddNote: (note) => provider.addNote(item.id, note),
                           onRate: (rating) => provider.rateDifficulty(item.id, rating),
                           onAddToList: (listId) => provider.addToVocabularyList(listId, item.id),

@@ -164,4 +164,57 @@ class VocabularyItem {
       isSaved: isSaved ?? this.isSaved,
     );
   }
+
+  // Special copyWith method for handling explicit null values
+  VocabularyItem copyWithNull({
+    String? id,
+    String? word,
+    String? definition,
+    String? translation,
+    String? partOfSpeech,
+    String? example,
+    String? exampleTranslation,
+    String? level,
+    String? topicId,
+    String? targetLanguage,
+    String? originalLanguage,
+    DateTime? createdAt,
+    bool? isDuplicate,
+    String? pronunciation,
+    String? category,
+    bool? isFavorite,
+    bool? isHidden,
+    DateTime? hiddenUntil,
+    String? personalNotes,
+    int? difficultyRating,
+    DateTime? lastReviewed,
+    int? reviewCount,
+    bool? isSaved,
+  }) {
+    return VocabularyItem(
+      id: id ?? this.id,
+      word: word ?? this.word,
+      definition: definition ?? this.definition,
+      translation: translation ?? this.translation,
+      partOfSpeech: partOfSpeech ?? this.partOfSpeech,
+      example: example ?? this.example,
+      exampleTranslation: exampleTranslation ?? this.exampleTranslation,
+      level: level ?? this.level,
+      topicId: topicId ?? this.topicId,
+      targetLanguage: targetLanguage ?? this.targetLanguage,
+      originalLanguage: originalLanguage ?? this.originalLanguage,
+      createdAt: createdAt ?? this.createdAt,
+      isDuplicate: isDuplicate ?? this.isDuplicate,
+      pronunciation: pronunciation ?? this.pronunciation,
+      category: category ?? this.category,
+      isFavorite: isFavorite ?? this.isFavorite,
+      isHidden: isHidden ?? this.isHidden,
+      hiddenUntil: hiddenUntil ?? this.hiddenUntil,
+      personalNotes: personalNotes ?? this.personalNotes,
+      difficultyRating: difficultyRating ?? this.difficultyRating,
+      lastReviewed: lastReviewed, // Allow explicit null
+      reviewCount: reviewCount ?? this.reviewCount,
+      isSaved: isSaved ?? this.isSaved,
+    );
+  }
 } 
