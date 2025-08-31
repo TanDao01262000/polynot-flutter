@@ -173,101 +173,62 @@ class VocabularyInteractionCard extends StatelessWidget {
           // Expanded content (simplified)
           Container(
             padding: const EdgeInsets.all(16),
-               decoration: BoxDecoration(
-                 color: Colors.grey.shade50,
-                 borderRadius: const BorderRadius.only(
-                   bottomLeft: Radius.circular(12),
-                   bottomRight: Radius.circular(12),
-                 ),
-               ),
-               child: Column(
-                 crossAxisAlignment: CrossAxisAlignment.start,
-                 children: [
-                   // Translation
-                   if (item.translation.isNotEmpty) ...[
-                     Container(
-                       padding: const EdgeInsets.all(12),
-                       decoration: BoxDecoration(
-                         color: Colors.white,
-                         borderRadius: BorderRadius.circular(8),
-                         border: Border.all(color: Colors.grey.shade200),
-                       ),
-                       child: Column(
-                         crossAxisAlignment: CrossAxisAlignment.start,
-                         children: [
-                           Row(
-                             children: [
-                               Icon(Icons.translate, size: 18, color: Colors.purple.shade600),
-                               const SizedBox(width: 8),
-                               Text(
-                                 'Vietnamese Translation',
-                                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                   fontWeight: FontWeight.w600,
-                                   color: Colors.purple.shade700,
-                                 ),
-                               ),
-                             ],
-                           ),
-                           const SizedBox(height: 8),
-                           Text(
-                             item.translation,
-                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                               fontWeight: FontWeight.w500,
-                               color: Colors.purple.shade900,
-                             ),
-                           ),
-                         ],
-                       ),
-                     ),
-                     const SizedBox(height: 12),
-                   ],
-                   
-                   // Personal notes
-                   if (item.personalNotes?.isNotEmpty == true) ...[
-                     Container(
-                       padding: const EdgeInsets.all(12),
-                       decoration: BoxDecoration(
-                         color: Colors.blue.shade50,
-                         borderRadius: BorderRadius.circular(8),
-                         border: Border.all(color: Colors.blue.shade200),
-                       ),
-                       child: Column(
-                         crossAxisAlignment: CrossAxisAlignment.start,
-                         children: [
-                           Row(
-                             children: [
-                               Icon(Icons.note, size: 18, color: Colors.blue.shade700),
-                               const SizedBox(width: 8),
-                               Text(
-                                 'Your Notes',
-                                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                   fontWeight: FontWeight.w600,
-                                   color: Colors.blue.shade700,
-                                 ),
-                               ),
-                             ],
-                           ),
-                           const SizedBox(height: 8),
-                           Text(
-                             item.personalNotes!,
-                             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                               color: Colors.blue.shade900,
-                               fontSize: 16,
-                               fontWeight: FontWeight.w500,
-                               height: 1.5,
-                             ),
-                           ),
-                         ],
-                       ),
-                     ),
-                     const SizedBox(height: 12),
-                   ],
-                   
-                   // Learning stats (hidden behind ellipsis)
-                   const SizedBox(height: 8),
-                 ],
-               ),
-             ),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(12),
+                bottomRight: Radius.circular(12),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Personal notes
+                if (item.personalNotes?.isNotEmpty == true) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.note, size: 18, color: Colors.blue.shade700),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Your Notes',
+                              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          item.personalNotes!,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Colors.blue.shade900,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                
+                // Learning stats (hidden behind ellipsis)
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
         ],
       ),
     );

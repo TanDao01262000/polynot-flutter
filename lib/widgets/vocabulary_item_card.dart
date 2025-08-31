@@ -37,16 +37,33 @@ class VocabularyItemCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(
-                      item.word,
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 28,
-                        color: Theme.of(context).colorScheme.primary,
-                        letterSpacing: 0.5,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Word and translation stacked vertically
+                        Text(
+                          item.word,
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 28,
+                            color: Theme.of(context).colorScheme.primary,
+                            letterSpacing: 0.5,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (item.translation.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            item.translation,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Colors.purple.shade700,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 18,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   // Progress button (ellipsis)
@@ -114,98 +131,175 @@ class VocabularyItemCard extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // Definition (moved up, styled as meaning - now first)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              // Definition and Example in a new design
+              Column(
+                children: [
+                  // Definition with enhanced styling
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.green.shade50,
+                          Colors.green.shade100,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green.shade200),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.green.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.psychology_outlined, size: 18, color: Colors.green.shade700),
-                        const SizedBox(width: 6),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade200,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.psychology_outlined,
+                                size: 16,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Definition',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
                         Text(
-                          'Meaning',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            color: Colors.green.shade700,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
+                          item.definition,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Colors.green.shade900,
+                            height: 1.6,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      item.definition,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.green.shade900,
-                        height: 1.5,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Example (moved down, now second)
-              if (item.example.isNotEmpty) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.shade200),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.lightbulb_outline, size: 18, color: Colors.blue.shade700),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Example',
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              color: Colors.blue.shade700,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                            ),
+
+                  const SizedBox(height: 16),
+
+                  // Example with enhanced styling
+                  if (item.example.isNotEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.blue.shade50,
+                            Colors.blue.shade100,
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.shade200),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.blue.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        item.example,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.blue.shade900,
-                          height: 1.5,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (item.exampleTranslation.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          item.exampleTranslation,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.blue.shade700,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade200,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.lightbulb_outline,
+                                  size: 16,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Example',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: Colors.blue.shade700,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
+                          const SizedBox(height: 12),
+                          Text(
+                            item.example,
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: Colors.blue.shade900,
+                              height: 1.6,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (item.exampleTranslation.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade100,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.blue.shade300),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.translate,
+                                    size: 14,
+                                    color: Colors.blue.shade600,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      item.exampleTranslation,
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        color: Colors.blue.shade700,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
         ),

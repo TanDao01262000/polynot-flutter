@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'screens/home_screen.dart';
+import 'screens/user_login_screen.dart';
+import 'screens/user_registration_screen.dart';
 import 'services/partner_service.dart';
 import 'providers/vocabulary_provider.dart';
 import 'providers/user_provider.dart';
@@ -40,6 +42,10 @@ class MyApp extends StatelessWidget{
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         ),
         home: const HomeScreen(),
+        routes: {
+          '/login': (context) => const UserLoginScreen(),
+          '/register': (context) => const UserRegistrationScreen(),
+        },
         debugShowCheckedModeBanner: false,
       ),
     );
