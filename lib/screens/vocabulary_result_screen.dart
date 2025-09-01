@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../providers/vocabulary_provider.dart';
 import '../providers/user_provider.dart';
 import '../widgets/vocabulary_item_card.dart';
-import '../widgets/vocabulary_interaction_card.dart';
 import '../widgets/vocabulary_generation_card.dart';
 import '../utils/string_extensions.dart';
 import '../utils/app_utils.dart';
@@ -291,6 +290,59 @@ class _VocabularyResultScreenState extends State<VocabularyResultScreen> {
                   ],
                 ),
               ),
+
+              // Quick access to vocabulary list
+              if (context.read<UserProvider>().currentUser != null) ...[
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/vocabulary-list');
+                    },
+                    icon: const Icon(Icons.list_alt, size: 20),
+                    label: const Text(
+                      'View My Vocabulary List',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade50,
+                      foregroundColor: Colors.blue.shade700,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.blue.shade200),
+                      ),
+                    ),
+                  ),
+                ),
+              ] else ...[
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/login');
+                    },
+                    icon: const Icon(Icons.login, size: 20),
+                    label: const Text(
+                      'Login to Save & View Vocabulary',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange.shade50,
+                      foregroundColor: Colors.orange.shade700,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.orange.shade200),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
 
               // Vocabulary list
               Expanded(

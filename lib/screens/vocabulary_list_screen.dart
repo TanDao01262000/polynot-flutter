@@ -20,7 +20,6 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   
-  String? _selectedCategory;
   String? _selectedTopic;
   String? _selectedLevel;
   bool _showFavoritesOnly = false;
@@ -83,7 +82,6 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
     print('📚 Search term is empty: ${searchTerm.isEmpty}');
     
     print('📚 Current filters:');
-    print('📚   - category: $_selectedCategory');
     print('📚   - topic: $_selectedTopic');
     print('📚   - level: $_selectedLevel');
     print('📚   - favorites: $_showFavoritesOnly');
@@ -95,7 +93,6 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
       showFavoritesOnly: _showFavoritesOnly,
       showHidden: _showHidden,
       topicName: _selectedTopic,
-      categoryName: _selectedCategory,
       level: _selectedLevel,
       searchTerm: searchTerm.isEmpty ? null : searchTerm,
     );
@@ -134,7 +131,6 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
       showFavoritesOnly: _showFavoritesOnly,
       showHidden: _showHidden,
       topicName: _selectedTopic,
-      categoryName: _selectedCategory,
       level: _selectedLevel,
       searchTerm: _searchController.text.trim().isEmpty ? null : _searchController.text.trim(),
     );
@@ -232,11 +228,6 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
-                  if (_selectedCategory != null)
-                    _buildFilterChip('Category: $_selectedCategory', () {
-                      setState(() => _selectedCategory = null);
-                      _loadVocabularyList();
-                    }),
                   if (_selectedTopic != null)
                     _buildFilterChip('Topic: $_selectedTopic', () {
                       setState(() => _selectedTopic = null);
@@ -475,8 +466,7 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
   }
 
   bool _hasActiveFilters() {
-    return _selectedCategory != null ||
-           _selectedTopic != null ||
+    return _selectedTopic != null ||
            _selectedLevel != null ||
            _showFavoritesOnly ||
            _showHidden;
@@ -487,21 +477,18 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
       context: context,
       isScrollControlled: true,
       builder: (context) => _FilterBottomSheet(
-        selectedCategory: _selectedCategory,
         selectedTopic: _selectedTopic,
         selectedLevel: _selectedLevel,
         showFavoritesOnly: _showFavoritesOnly,
         showHidden: _showHidden,
-        onApply: (category, topic, level, favorites, hidden) {
+        onApply: (topic, level, favorites, hidden) {
           print('🔍 Filter applied:');
           print('🔍   - showHidden: $hidden (was: $_showHidden)');
           print('🔍   - showFavoritesOnly: $favorites');
-          print('🔍   - category: $category');
           print('🔍   - topic: $topic');
           print('🔍   - level: $level');
           
           setState(() {
-            _selectedCategory = category;
             _selectedTopic = topic;
             _selectedLevel = level;
             _showFavoritesOnly = favorites;
@@ -589,15 +576,13 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
 }
 
 class _FilterBottomSheet extends StatefulWidget {
-  final String? selectedCategory;
   final String? selectedTopic;
   final String? selectedLevel;
   final bool showFavoritesOnly;
   final bool showHidden;
-  final Function(String?, String?, String?, bool, bool) onApply;
+  final Function(String?, String?, bool, bool) onApply;
 
   const _FilterBottomSheet({
-    required this.selectedCategory,
     required this.selectedTopic,
     required this.selectedLevel,
     required this.showFavoritesOnly,
@@ -610,31 +595,16 @@ class _FilterBottomSheet extends StatefulWidget {
 }
 
 class _FilterBottomSheetState extends State<_FilterBottomSheet> {
-  late String? _category;
   late String? _topic;
   late String? _level;
   late bool _favoritesOnly;
   late bool _showHidden;
-
-  final List<String> _categories = [
-    'daily_life',
-    'business_professional',
-    'academic_education',
-    'technology_digital',
-    'travel_tourism',
-    'health_wellness',
-    'entertainment_media',
-    'sports_fitness',
-    'social_relationships',
-    'environment_nature',
-  ];
 
   final List<String> _levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
   @override
   void initState() {
     super.initState();
-    _category = widget.selectedCategory;
     _topic = widget.selectedTopic;
     _level = widget.selectedLevel;
     _favoritesOnly = widget.showFavoritesOnly;
@@ -655,34 +625,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
           ),
           const SizedBox(height: 16),
           
-          // Category dropdown
-          DropdownButtonFormField<String>(
-            value: _category,
-            decoration: const InputDecoration(
-              labelText: 'Category',
-              border: OutlineInputBorder(),
-            ),
-            hint: const Text('Select category'),
-            items: [
-              const DropdownMenuItem<String>(
-                value: null,
-                child: Text('All categories'),
-              ),
-              ..._categories.map((category) => DropdownMenuItem(
-                value: category,
-                child: Text(category.replaceAll('_', ' ').toUpperCase()),
-              )),
-            ],
-            onChanged: (value) {
-              setState(() {
-                _category = value;
-                if (value != _topic?.split('_').first) {
-                  _topic = null;
-                }
-              });
-            },
-          ),
-          const SizedBox(height: 16),
+
           
           // Level dropdown
           DropdownButtonFormField<String>(
@@ -732,7 +675,6 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                 child: OutlinedButton(
                   onPressed: () {
                     setState(() {
-                      _category = null;
                       _topic = null;
                       _level = null;
                       _favoritesOnly = false;
@@ -746,7 +688,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    widget.onApply(_category, _topic, _level, _favoritesOnly, _showHidden);
+                    widget.onApply(_topic, _level, _favoritesOnly, _showHidden);
                   },
                   child: const Text('Apply'),
                 ),
