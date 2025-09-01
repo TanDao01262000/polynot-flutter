@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/vocabulary_request.dart';
 import '../providers/vocabulary_provider.dart';
 import '../utils/string_extensions.dart';
+import '../utils/app_utils.dart';
 import 'vocabulary_result_screen.dart';
 
 class VocabularyGenerationScreen extends StatefulWidget {
@@ -46,8 +47,13 @@ class _VocabularyGenerationScreenState extends State<VocabularyGenerationScreen>
     if (!_isMultiple) {
       // Single topic path
       if (_formKey.currentState!.validate()) {
+        final topic = _topicController.text.trim();
+        
+        // Show loading indicator
+        AppUtils.showLoadingSnackBar(context, 'Generating vocabulary for "$topic"...');
+
         final request = VocabularyRequest(
-          topic: _topicController.text.trim(),
+          topic: topic,
           level: _selectedLevel,
           languageToLearn: _selectedLanguageToLearn,
           learnersNativeLanguage: _selectedNativeLanguage,
@@ -70,11 +76,12 @@ class _VocabularyGenerationScreenState extends State<VocabularyGenerationScreen>
       final raw = _multiTopicsController.text.trim();
       final topics = raw.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
       if (topics.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter at least one topic (comma-separated)')),
-        );
+        AppUtils.showWarningSnackBar(context, 'Please enter at least one topic (comma-separated)');
         return;
       }
+
+      // Show loading indicator
+      AppUtils.showLoadingSnackBar(context, 'Generating vocabulary for ${topics.length} topics...');
 
       context.read<VocabularyProvider>().generateMultipleTopics(
             topics: topics,

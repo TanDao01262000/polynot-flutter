@@ -34,38 +34,7 @@ class PartnerService {
     }
   }
 
-  // Create a new user
-  static Future<Map<String, dynamic>> createUser(String userName, String userLevel, String targetLanguage) async {
-    try {
-      final uri = Uri.parse('$baseUrl/users/');
-      
-      print('Creating user at: $uri');
-      
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'user_name': userName,
-          'user_level': userLevel,
-          'target_language': targetLanguage,
-        }),
-      );
-
-      print('Create User Response Status: ${response.statusCode}');
-      print('Create User Response Body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        print('ERROR: Failed to create user - ${response.statusCode}');
-        print('Error Body: ${response.body}');
-        throw Exception('Failed to create user: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('EXCEPTION in createUser: $e');
-      throw Exception('Network error: $e');
-    }
-  }
+  // Note: User creation is now handled by UserService.registerUser() with password requirement
 
   // Get user information
   static Future<Map<String, dynamic>> getUser(String userName) async {

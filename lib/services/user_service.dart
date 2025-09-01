@@ -147,6 +147,31 @@ class UserService {
     }
   }
 
+  // 2.5 Authenticate User with Password (Currently uses username-only verification)
+  static Future<User> authenticateUser(String userName, String password) async {
+    try {
+      // Note: Current API doesn't support password authentication yet
+      // For now, we'll verify the user exists and return their profile
+      // TODO: Update this when the API supports password authentication
+      print('Authenticating user: $userName (password verification not yet implemented)');
+      
+      // Get user profile to verify user exists
+      final user = await getUserByUsername(userName);
+      
+      // For now, we'll accept any password since the API doesn't verify it
+      // In a real implementation, this would verify the password against the stored hash
+      print('User authentication successful (password verification pending API update)');
+      
+      return user;
+    } catch (e) {
+      print('EXCEPTION in authenticateUser: $e');
+      if (e.toString().contains('User not found')) {
+        throw Exception('Invalid username or password');
+      }
+      throw Exception('Network error: $e');
+    }
+  }
+
   // 3.1 Update User Profile
   static Future<User> updateUserProfile(String userName, UserProfileUpdateRequest request) async {
     try {

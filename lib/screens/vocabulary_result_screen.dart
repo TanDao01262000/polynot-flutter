@@ -1,11 +1,108 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/vocabulary_provider.dart';
+import '../providers/user_provider.dart';
 import '../widgets/vocabulary_item_card.dart';
+import '../widgets/vocabulary_interaction_card.dart';
+import '../widgets/vocabulary_generation_card.dart';
 import '../utils/string_extensions.dart';
+import '../utils/app_utils.dart';
 
-class VocabularyResultScreen extends StatelessWidget {
+class VocabularyResultScreen extends StatefulWidget {
   const VocabularyResultScreen({super.key});
+
+  @override
+  State<VocabularyResultScreen> createState() => _VocabularyResultScreenState();
+}
+
+class _VocabularyResultScreenState extends State<VocabularyResultScreen> {
+  bool _hasInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeUser();
+    });
+  }
+
+  void _initializeUser() {
+    if (_hasInitialized) return;
+    
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final vocabProvider = Provider.of<VocabularyProvider>(context, listen: false);
+    
+    if (userProvider.currentUser != null) {
+      vocabProvider.setCurrentUserId(userProvider.currentUser!.id);
+    }
+    
+    _hasInitialized = true;
+  }
+
+  Future<bool> _saveItem(String vocabEntryId) async {
+    print('_saveItem called with ID: $vocabEntryId');
+    
+    final vocabProvider = Provider.of<VocabularyProvider>(context, listen: false);
+    
+    // Check if already saving
+    if (vocabProvider.isSaving(vocabEntryId)) {
+      print('Item $vocabEntryId is already being saved, skipping...');
+      return false;
+    }
+
+    print('Starting save process for item: $vocabEntryId');
+    final success = await vocabProvider.saveVocabularyEntry(vocabEntryId);
+    print('Save result for item $vocabEntryId: $success');
+
+    if (success) {
+      AppUtils.showSuccessSnackBar(context, 'Vocabulary saved successfully!');
+    } else {
+      AppUtils.showErrorSnackBar(
+        context, 
+        vocabProvider.error ?? 'Failed to save vocabulary',
+        onRetry: () => _saveItem(vocabEntryId),
+      );
+    }
+    
+    return success;
+  }
+
+  Future<void> _saveAllItems() async {
+    final vocabProvider = Provider.of<VocabularyProvider>(context, listen: false);
+    final items = vocabProvider.vocabularyItems;
+
+    int savedCount = 0;
+    int failedCount = 0;
+
+    for (final item in items) {
+      if (!item.isSaved) { // Only save items that haven't been saved yet
+        final success = await vocabProvider.saveVocabularyEntry(item.id);
+        if (success) {
+          savedCount++;
+        } else {
+          failedCount++;
+        }
+      }
+    }
+
+    if (savedCount > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Saved $savedCount items successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+
+    if (failedCount > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to save $failedCount items'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,12 +111,55 @@ class VocabularyResultScreen extends StatelessWidget {
         title: const Text('Generated Vocabulary'),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Share feature coming soon!')),
-              );
+          Consumer<UserProvider>(
+            builder: (context, userProvider, child) {
+              if (userProvider.currentUser != null) {
+                return Consumer<VocabularyProvider>(
+                  builder: (context, vocabProvider, child) {
+                    if (vocabProvider.vocabularyItems.isNotEmpty) {
+                      return PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert),
+                        onSelected: (value) {
+                          switch (value) {
+                            case 'save_all':
+                              _saveAllItems();
+                              break;
+                            case 'share':
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Share feature coming soon!')),
+                              );
+                              break;
+                          }
+                        },
+                                                 itemBuilder: (context) => [
+                           PopupMenuItem(
+                             value: 'save_all',
+                             child: Row(
+                               children: [
+                                 Icon(Icons.save),
+                                 SizedBox(width: 8),
+                                 Text('Save All Items'),
+                               ],
+                             ),
+                           ),
+                          const PopupMenuItem(
+                            value: 'share',
+                            child: Row(
+                              children: [
+                                Icon(Icons.share),
+                                SizedBox(width: 8),
+                                Text('Share'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                );
+              }
+              return const SizedBox.shrink();
             },
           ),
         ],
@@ -104,7 +244,7 @@ class VocabularyResultScreen extends StatelessWidget {
 
           return Column(
             children: [
-              // Header with request info (category removed)
+              // Header with request info and generation stats
               Container(
                 padding: const EdgeInsets.all(16),
                 color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
@@ -144,6 +284,7 @@ class VocabularyResultScreen extends StatelessWidget {
                                   fontWeight: FontWeight.w600,
                                 ),
                           ),
+
                         ],
                       ),
                     ],
@@ -153,20 +294,54 @@ class VocabularyResultScreen extends StatelessWidget {
 
               // Vocabulary list
               Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: provider.vocabularyItems.length,
-                  itemBuilder: (context, index) {
-                    return VocabularyItemCard(
-                      item: provider.vocabularyItems[index],
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('${provider.vocabularyItems[index].word} - ${provider.vocabularyItems[index].definition}'),
-                          ),
-                        );
-                      },
-                    );
+                child: Consumer2<UserProvider, VocabularyProvider>(
+                  builder: (context, userProvider, vocabProvider, child) {
+                    if (userProvider.currentUser != null) {
+                      // Use generation cards for logged-in users with save functionality
+                      return ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: vocabProvider.vocabularyItems.length,
+                        itemBuilder: (context, index) {
+                          final item = vocabProvider.vocabularyItems[index];
+                          return VocabularyGenerationCard(
+                            key: ValueKey('vocab_gen_${item.id}_${index}'),
+                            item: item,
+                            onSave: (String itemId) async {
+                              print('Save button clicked for item: ${item.word} (ID: $itemId)');
+                              return await _saveItem(itemId);
+                            },
+                            isSaving: vocabProvider.isSaving(item.id),
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('${item.word} - ${item.definition}'),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      );
+                    } else {
+                      // Use basic cards for non-logged-in users
+                      return ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: vocabProvider.vocabularyItems.length,
+                        itemBuilder: (context, index) {
+                          final item = vocabProvider.vocabularyItems[index];
+                          return VocabularyItemCard(
+                            key: ValueKey('vocab_basic_$index'),
+                            item: item,
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('${item.word} - ${item.definition}'),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      );
+                    }
                   },
                 ),
               ),

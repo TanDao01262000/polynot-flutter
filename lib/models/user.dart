@@ -230,6 +230,7 @@ class UserRegistrationRequest {
   final String userLevel;
   final String targetLanguage;
   final String email;
+  final String password;
   final String? firstName;
   final String? lastName;
 
@@ -238,6 +239,7 @@ class UserRegistrationRequest {
     required this.userLevel,
     required this.targetLanguage,
     required this.email,
+    required this.password,
     this.firstName,
     this.lastName,
   });
@@ -248,6 +250,7 @@ class UserRegistrationRequest {
       'user_level': userLevel,
       'target_language': targetLanguage,
       'email': email,
+      'password': password,
       if (firstName != null) 'first_name': firstName,
       if (lastName != null) 'last_name': lastName,
     };

@@ -13,11 +13,14 @@ class UserLoginScreen extends StatefulWidget {
 class _UserLoginScreenState extends State<UserLoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _userNameController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
     _userNameController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -33,9 +36,10 @@ class _UserLoginScreenState extends State<UserLoginScreen> {
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final userName = _userNameController.text.trim();
+      final password = _passwordController.text.trim();
       
-      // First get user profile
-      final success = await userProvider.getUserProfile(userName);
+      // Authenticate user with password
+      final success = await userProvider.authenticateUser(userName, password);
       
       if (success && mounted) {
         // Record login
@@ -124,6 +128,35 @@ class _UserLoginScreenState extends State<UserLoginScreen> {
                   ),
                   const SizedBox(height: 24),
 
+                  // Password field
+                  TextFormField(
+                    controller: _passwordController,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      hintText: 'Enter your password',
+                      prefixIcon: const Icon(Icons.lock),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
+                      border: const OutlineInputBorder(),
+                    ),
+                    obscureText: _obscurePassword,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Password is required';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 24),
+
                   // Info card
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -151,8 +184,7 @@ class _UserLoginScreenState extends State<UserLoginScreen> {
                         const SizedBox(height: 8),
                         Text(
                           '• Use the username you registered with\n'
-                          '• Your email is: ${_userNameController.text.isEmpty ? "username" : _userNameController.text}@testuser.com\n'
-                          '• Password: TestPassword123!\n'
+                          '• Enter the password you created during registration\n'
                           '• Make sure you have confirmed your email',
                           style: TextStyle(color: Colors.blue.shade700),
                         ),
