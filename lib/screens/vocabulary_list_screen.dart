@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/vocabulary_category.dart';
+import '../models/vocabulary_item.dart';
 import '../providers/vocabulary_provider.dart';
 import '../providers/user_provider.dart';
 import '../widgets/vocabulary_interaction_card.dart';
@@ -189,10 +190,10 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
             icon: const Icon(Icons.filter_list),
             onPressed: () => _showFilterDialog(context),
           ),
-          IconButton(
-            icon: const Icon(Icons.bookmark),
-            onPressed: () => _showPersonalLists(context),
-          ),
+          // IconButton(
+          //   icon: const Icon(Icons.bookmark),
+          //   onPressed: () => _showPersonalLists(context),
+          // ),
         ],
       ),
       body: Column(
@@ -451,11 +452,12 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
             return const SizedBox.shrink();
           }
           
-          return FloatingActionButton.extended(
-            onPressed: () => _showCreateListDialog(context),
-            icon: const Icon(Icons.add),
-            label: const Text('Create List'),
-          );
+          // return FloatingActionButton.extended(
+          //   onPressed: () => _showCreateListDialog(context),
+          //   icon: const Icon(Icons.add),
+          //   label: const Text('Create List'),
+          // );
+          return const SizedBox.shrink(); // Hide Create List button for now
         },
       ),
     );
@@ -817,7 +819,13 @@ class _PersonalListsBottomSheet extends StatelessWidget {
                     trailing: Text('${list.vocabCount} items'),
                     onTap: () {
                       Navigator.pop(context);
-                      // TODO: Navigate to list detail screen
+                      // Navigate to list detail screen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PersonalListDetailScreen(list: list),
+                        ),
+                      );
                     },
                   );
                 },
@@ -826,6 +834,167 @@ class _PersonalListsBottomSheet extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+// New screen for viewing personal list contents
+class PersonalListDetailScreen extends StatefulWidget {
+  final VocabularyPersonalList list;
+
+  const PersonalListDetailScreen({
+    super.key,
+    required this.list,
+  });
+
+  @override
+  State<PersonalListDetailScreen> createState() => _PersonalListDetailScreenState();
+}
+
+class _PersonalListDetailScreenState extends State<PersonalListDetailScreen> {
+  List<VocabularyItem> _listItems = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadListContents();
+  }
+
+  Future<void> _loadListContents() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      final provider = Provider.of<VocabularyProvider>(context, listen: false);
+      final items = await provider.getListContents(widget.list.id);
+      
+      setState(() {
+        _listItems = items;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.list.name),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
+      body: _buildBody(),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.red,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Error loading list',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadListContents,
+              child: const Text('Try Again'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_listItems.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.bookmark_outline,
+              size: 64,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No vocabulary items yet',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Add vocabulary items to this list to get started',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Go Back to Vocabulary'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _listItems.length,
+      itemBuilder: (context, index) {
+        final item = _listItems[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            title: Text(
+              item.word,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(item.definition),
+            trailing: IconButton(
+              icon: const Icon(Icons.remove_circle_outline),
+              onPressed: () {
+                // TODO: Implement remove from list functionality
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }

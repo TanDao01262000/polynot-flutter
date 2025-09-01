@@ -421,6 +421,20 @@ class VocabularyProvider extends ChangeNotifier {
     }
   }
 
+  // Get list contents
+  Future<List<VocabularyItem>> getListContents(String listId) async {
+    if (_currentUserId == null) return [];
+
+    try {
+      final items = await VocabularyService.getListContents(listId, _currentUserId!);
+      return items;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return [];
+    }
+  }
+
   // Add vocabulary to list
   Future<bool> addToVocabularyList(String listId, String vocabEntryId) async {
     if (_currentUserId == null) return false;

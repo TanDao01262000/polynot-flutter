@@ -787,6 +787,36 @@ class VocabularyService {
 
 }
 
+  // Get list contents
+  static Future<List<VocabularyItem>> getListContents(String listId, String userUuid) async {
+    _log('Base URL: $baseUrl');
+    final uri = Uri.parse('$baseUrl/vocab/lists/$listId');
+    _log('GET $uri');
+    
+    try {
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $userUuid',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      _log('Status: ${response.statusCode}');
+      _log('Response: ${_trimBody(response.body)}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final vocabularies = data['vocabularies'] as List? ?? [];
+        return vocabularies.map((item) => VocabularyItem.fromJson(item)).toList();
+      }
+      return [];
+    } catch (e) {
+      _log('Error: $e');
+      return [];
+    }
+  }
+
   // Add vocabulary to list
   static Future<bool> addToVocabularyList(String listId, String vocabEntryId, String userUuid) async {
     _log('Base URL: $baseUrl');

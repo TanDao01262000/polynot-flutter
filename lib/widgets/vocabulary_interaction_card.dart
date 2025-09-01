@@ -145,25 +145,25 @@ class VocabularyInteractionCard extends StatelessWidget {
                         }),
                       ),
                     
-                    // Add to list button
-                    if (personalLists.isNotEmpty)
-                      PopupMenuButton<String>(
-                        icon: Icon(Icons.bookmark_add, size: 20, color: Colors.grey.shade600),
-                        tooltip: 'Add to list',
-                        onSelected: onAddToList,
-                        itemBuilder: (context) => personalLists.map((list) {
-                          return PopupMenuItem(
-                            value: list.id,
-                            child: Row(
-                              children: [
-                                const Icon(Icons.bookmark, size: 16),
-                                const SizedBox(width: 8),
-                                Expanded(child: Text(list.name)),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
+                    // Add to list button (commented out for now)
+                    // if (personalLists.isNotEmpty)
+                    //   PopupMenuButton<String>(
+                    //     icon: Icon(Icons.bookmark_add, size: 20, color: Colors.grey.shade600),
+                    //         tooltip: 'Add to list',
+                    //         onSelected: onAddToList,
+                    //         itemBuilder: (context) => personalLists.map((list) {
+                    //           return PopupMenuItem(
+                    //             value: list.id,
+                    //             child: Row(
+                    //               children: [
+                    //                 const Icon(Icons.bookmark, size: 16),
+                    //                 const SizedBox(width: 8),
+                    //                 Expanded(child: Text(list.name)),
+                    //               ],
+                    //             ),
+                    //           );
+                    //         }).toList(),
+                    //       ),
                   ],
                 ),
               ],

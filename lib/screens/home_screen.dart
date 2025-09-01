@@ -329,81 +329,148 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildMainOptions(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'What would you like to do?',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF2C3E50),
-          ),
-        ),
-        const SizedBox(height: 20),
-        
-        // Chat Partner Card
-        _buildEnhancedOptionCard(
-          context: context,
-          title: 'Chat Partner',
-          subtitle: 'Have conversations with AI partners',
-          icon: Icons.chat_bubble_outline,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PartnerSelectScreen(),
+    return Consumer<UserProvider>(
+      builder: (context, userProvider, child) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'What would you like to do?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF2C3E50),
               ),
-            );
-          },
-        ),
-        
-        const SizedBox(height: 16),
-        
-        // Vocabulary Generator Card
-        _buildEnhancedOptionCard(
-          context: context,
-          title: 'Vocabulary Generator',
-          subtitle: 'Generate vocabulary lists, phrasal verbs, and idioms',
-          icon: Icons.book_outlined,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => VocabularyGenerationScreen(),
+            ),
+            const SizedBox(height: 20),
+            
+            // Chat Partner Card (only for logged-in users)
+            if (userProvider.isLoggedIn) ...[
+              _buildEnhancedOptionCard(
+                context: context,
+                title: 'Chat Partner',
+                subtitle: 'Have conversations with AI partners',
+                icon: Icons.chat_bubble_outline,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PartnerSelectScreen(),
+                    ),
+                  );
+                },
               ),
-            );
-          },
-        ),
-        
-        // Vocabulary List (only for logged-in users)
-        Consumer<UserProvider>(
-          builder: (context, userProvider, child) {
-            if (userProvider.isLoggedIn) {
-              return Column(
-                children: [
-                  const SizedBox(height: 16),
-                  _buildEnhancedOptionCard(
-                    context: context,
-                    title: 'Vocabulary List',
-                    subtitle: 'Browse and manage your saved vocabulary',
-                    icon: Icons.list,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const VocabularyListScreen(),
-                        ),
-                      );
-                    },
+              const SizedBox(height: 16),
+            ],
+            
+            // Vocabulary Generator Card (available for everyone)
+            _buildEnhancedOptionCard(
+              context: context,
+              title: 'Vocabulary Generator',
+              subtitle: 'Generate vocabulary lists, phrasal verbs, and idioms',
+              icon: Icons.book_outlined,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => VocabularyGenerationScreen(),
                   ),
-                ],
-              );
-            }
-            return const SizedBox.shrink();
-          },
-        ),
-      ],
+                );
+              },
+            ),
+            
+            // Login prompt for non-logged-in users
+            if (!userProvider.isLoggedIn) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F9FA),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE9ECEF)),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.lock_outline,
+                      size: 32,
+                      color: const Color(0xFF7F8C8D),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Login to unlock more features!',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2C3E50),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Create an account to save vocabulary, chat with AI partners, and track your learning progress.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF7F8C8D),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pushNamed(context, '/login');
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF3498DB),
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Login'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              Navigator.pushNamed(context, '/register');
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF3498DB),
+                              side: const BorderSide(color: Color(0xFF3498DB)),
+                            ),
+                            child: const Text('Register'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
+            // Vocabulary List (only for logged-in users)
+            if (userProvider.isLoggedIn) ...[
+              const SizedBox(height: 16),
+              _buildEnhancedOptionCard(
+                context: context,
+                title: 'Vocabulary List',
+                subtitle: 'Browse and manage your saved vocabulary',
+                icon: Icons.list,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const VocabularyListScreen(),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 

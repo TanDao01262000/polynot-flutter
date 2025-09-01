@@ -178,7 +178,7 @@ class CreateVocabularyListRequest {
 
   Map<String, dynamic> toJson() {
     return {
-      'name': name,
+      'list_name': name,
       'description': description,
     };
   }

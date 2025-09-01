@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
+import '../providers/vocabulary_provider.dart';
 import '../models/user.dart';
 import '../services/user_service.dart';
 
@@ -44,8 +45,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           ),
         ],
       ),
-      body: Consumer<UserProvider>(
-        builder: (context, userProvider, child) {
+      body: Consumer2<UserProvider, VocabularyProvider>(
+        builder: (context, userProvider, vocabProvider, child) {
           if (userProvider.isLoading) {
             return const Center(
               child: CircularProgressIndicator(),
@@ -193,10 +194,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                const SizedBox(width: 12),
                                Expanded(
                                  child: _buildStatCard(
-                                   'Avg Messages',
-                                   statistics.averageMessagesPerConversation.toStringAsFixed(1),
-                                   Icons.analytics_outlined,
-                                   Colors.purple,
+                                   'Vocabulary',
+                                   vocabProvider.vocabularyListItems.length.toString(),
+                                   Icons.book_outlined,
+                                   Colors.indigo,
                                  ),
                                ),
                              ],
