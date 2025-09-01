@@ -7,6 +7,7 @@ import 'screens/user_registration_screen.dart';
 import 'services/partner_service.dart';
 import 'providers/vocabulary_provider.dart';
 import 'providers/user_provider.dart';
+import 'screens/vocabulary_list_screen.dart';
 
 void main() async {
   // Load environment variables
@@ -45,6 +46,7 @@ class MyApp extends StatelessWidget{
         routes: {
           '/login': (context) => const UserLoginScreen(),
           '/register': (context) => const UserRegistrationScreen(),
+          '/vocabulary-list': (context) => const VocabularyListScreen(),
         },
         debugShowCheckedModeBanner: false,
       ),

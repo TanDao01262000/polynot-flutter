@@ -83,22 +83,29 @@ class VocabularyProvider extends ChangeNotifier {
         return null;
       }).whereType<VocabularyItem>().toList();
       
-      // Apply client-side search filtering if backend doesn't support it
-      List<VocabularyItem> itemsToAdd;
+      // Apply client-side filtering for search and favorites
+      List<VocabularyItem> itemsToAdd = newItems;
+      
+      // Apply search filtering if backend doesn't support it
       if (request.searchTerm != null && request.searchTerm!.isNotEmpty) {
         print('Provider: Applying client-side search filtering for: "${request.searchTerm}"');
         final searchTerm = request.searchTerm!.toLowerCase();
-        final filteredItems = newItems.where((item) {
+        itemsToAdd = itemsToAdd.where((item) {
           return item.word.toLowerCase().contains(searchTerm) ||
                  item.definition.toLowerCase().contains(searchTerm) ||
                  item.translation.toLowerCase().contains(searchTerm) ||
                  item.example.toLowerCase().contains(searchTerm);
         }).toList();
         
-        print('Provider: Filtered ${newItems.length} items to ${filteredItems.length} items');
-        itemsToAdd = filteredItems;
-      } else {
-        itemsToAdd = newItems;
+        print('Provider: Filtered ${newItems.length} items to ${itemsToAdd.length} items after search');
+      }
+      
+      // Apply favorites filtering (client-side as backup)
+      if (request.showFavoritesOnly) {
+        print('Provider: Applying client-side favorites filtering');
+        final beforeCount = itemsToAdd.length;
+        itemsToAdd = itemsToAdd.where((item) => item.isFavorite).toList();
+        print('Provider: Filtered ${beforeCount} items to ${itemsToAdd.length} items after favorites filter');
       }
       
       // Add items to the list
@@ -142,7 +149,6 @@ class VocabularyProvider extends ChangeNotifier {
       showFavoritesOnly: baseRequest.showFavoritesOnly,
       showHidden: baseRequest.showHidden,
       topicName: baseRequest.topicName,
-      categoryName: baseRequest.categoryName,
       level: baseRequest.level,
       searchTerm: baseRequest.searchTerm,
     );
@@ -709,16 +715,15 @@ class VocabularyProvider extends ChangeNotifier {
       if (_lastListRequest != null) {
         print('Provider: Using last request parameters: ${_lastListRequest!.toJson()}');
         // Create a new request with the same parameters but page 1
-        final reloadRequest = VocabularyListRequest(
-          page: 1,
-          limit: _lastListRequest!.limit,
-          showFavoritesOnly: _lastListRequest!.showFavoritesOnly,
-          showHidden: _lastListRequest!.showHidden,
-          topicName: _lastListRequest!.topicName,
-          categoryName: _lastListRequest!.categoryName,
-          level: _lastListRequest!.level,
-          searchTerm: _lastListRequest!.searchTerm,
-        );
+              final reloadRequest = VocabularyListRequest(
+        page: 1,
+        limit: _lastListRequest!.limit,
+        showFavoritesOnly: _lastListRequest!.showFavoritesOnly,
+        showHidden: _lastListRequest!.showHidden,
+        topicName: _lastListRequest!.topicName,
+        level: _lastListRequest!.level,
+        searchTerm: _lastListRequest!.searchTerm,
+      );
         
         await getVocabularyList(reloadRequest);
         print('Provider: Vocabulary list reload completed');

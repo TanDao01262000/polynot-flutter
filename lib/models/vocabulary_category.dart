@@ -45,7 +45,6 @@ class VocabularyListRequest {
   final bool showFavoritesOnly;
   final bool showHidden;
   final String? topicName;
-  final String? categoryName;
   final String? level;
   final String? searchTerm;
 
@@ -55,7 +54,6 @@ class VocabularyListRequest {
     this.showFavoritesOnly = false,
     this.showHidden = false,
     this.topicName,
-    this.categoryName,
     this.level,
     this.searchTerm,
   });
@@ -69,7 +67,6 @@ class VocabularyListRequest {
     };
 
     if (topicName != null) data['topic_name'] = topicName;
-    if (categoryName != null) data['category_name'] = categoryName;
     if (level != null) data['level'] = level;
     if (searchTerm != null) data['search_term'] = searchTerm;
 
