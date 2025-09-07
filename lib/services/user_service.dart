@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/user.dart';
+import 'password_service.dart';
 
 class UserService {
   static String get baseUrl => dotenv.env['LOCAL_API_ENDPOINT'] ?? 'http://localhost:8000';
@@ -24,7 +25,12 @@ class UserService {
       print('Register User Response Body: ${response.body}');
 
       if (response.statusCode == 201) {
-        return User.fromJson(jsonDecode(response.body));
+        final user = User.fromJson(jsonDecode(response.body));
+        
+        // Store the password securely for future authentication
+        await PasswordService.storePassword(request.userName, request.password);
+        
+        return user;
       } else {
         print('ERROR: Failed to register user - ${response.statusCode}');
         print('Error Body: ${response.body}');
@@ -147,39 +153,54 @@ class UserService {
     }
   }
 
-  // 2.5 Authenticate User with Password (Currently uses username-only verification)
-  static Future<User> authenticateUser(String userName, String password) async {
+  // 2.5 Authenticate User with Password
+  static Future<LoginResponse> authenticateUser(String userName, String password) async {
     try {
-      // Note: Current API doesn't support password authentication yet
-      // For now, we'll verify the user exists and return their profile
-      // TODO: Update this when the API supports password authentication
-      print('Authenticating user: $userName (password verification not yet implemented)');
-      
-      // Get user profile to verify user exists
+      // First, get the user's profile to verify they exist
       final user = await getUserByUsername(userName);
       
-      // For now, we'll accept any password since the API doesn't verify it
-      // In a real implementation, this would verify the password against the stored hash
-      print('User authentication successful (password verification pending API update)');
+      // CRITICAL SECURITY FIX: Implement proper password validation
+      // Verify the password against the stored hash
+      final isPasswordValid = await PasswordService.verifyPassword(userName, password);
       
-      return user;
+      if (!isPasswordValid) {
+        throw Exception('Invalid username or password');
+      }
+      
+      // Generate a session token (in a real app, this would come from the server)
+      final sessionToken = 'session_${userName}_${DateTime.now().millisecondsSinceEpoch}';
+      
+      // Create a login response
+      final loginResponse = LoginResponse(
+        user: user,
+        sessionToken: sessionToken,
+        streakDays: user.streakDays,
+        lastLogin: DateTime.now(),
+      );
+      
+      print('User authentication successful for: $userName');
+      return loginResponse;
     } catch (e) {
       print('EXCEPTION in authenticateUser: $e');
       if (e.toString().contains('User not found')) {
         throw Exception('Invalid username or password');
       }
-      throw Exception('Network error: $e');
+      throw Exception('Invalid username or password');
     }
   }
 
   // 3.1 Update User Profile
   static Future<User> updateUserProfile(String userName, UserProfileUpdateRequest request) async {
     try {
+      // Use the correct profile endpoint that was working before
       final uri = Uri.parse('$baseUrl/users/$userName/profile');
       
       print('Updating user profile at: $uri');
       print('Request body: ${jsonEncode(request.toJson())}');
+      print('Request data keys: ${request.toJson().keys.toList()}');
+      print('Request data values: ${request.toJson().values.toList()}');
       
+      // Try PATCH method with different endpoint structure
       final response = await http.patch(
         uri,
         headers: {'Content-Type': 'application/json'},
@@ -320,5 +341,67 @@ class UserService {
   // Helper method to get all valid user levels
   static List<String> getValidUserLevels() {
     return ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  }
+
+  // 7.1 Logout User
+  static Future<void> logoutUser(String sessionToken) async {
+    try {
+      final uri = Uri.parse('$baseUrl/auth/logout');
+      
+      print('Logging out user at: $uri');
+      
+      final response = await http.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': sessionToken,
+        },
+      );
+
+      print('Logout Response Status: ${response.statusCode}');
+      print('Logout Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        print('User logged out successfully');
+      } else {
+        print('WARNING: Logout API call failed - ${response.statusCode}');
+        print('Error Body: ${response.body}');
+        // Don't throw exception for logout failures - still clear local session
+      }
+    } catch (e) {
+      print('EXCEPTION in logoutUser: $e');
+      // Don't throw exception for logout failures - still clear local session
+    }
+  }
+
+  // 7.2 Verify Session Token
+  static Future<bool> verifySessionToken(String sessionToken) async {
+    try {
+      final uri = Uri.parse('$baseUrl/auth/verify');
+      
+      print('Verifying session token at: $uri');
+      
+      final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': sessionToken,
+        },
+      );
+
+      print('Session Verification Response Status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        return true;
+      } else if (response.statusCode == 401) {
+        return false; // Session expired or invalid
+      } else {
+        print('ERROR: Session verification failed - ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('EXCEPTION in verifySessionToken: $e');
+      return false;
+    }
   }
 }

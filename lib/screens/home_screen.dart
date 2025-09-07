@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../widgets/main_option_card.dart';
 import '../providers/user_provider.dart';
 import './partner_selection_screen.dart';
 import './vocabulary_generation_screen.dart';
@@ -226,69 +225,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildQuickStats(BuildContext context) {
-    return Consumer<UserProvider>(
-      builder: (context, userProvider, child) {
-        if (!userProvider.isLoggedIn) return const SizedBox.shrink();
-        
-        return Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF2C3E50).withOpacity(0.08),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Your Progress',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2C3E50),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      icon: Icons.book,
-                      title: 'Vocabulary',
-                      value: '0',
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildStatCard(
-                      icon: Icons.chat_bubble,
-                      title: 'Conversations',
-                      value: '0',
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildStatCard(
-                      icon: Icons.trending_up,
-                      title: 'Streak',
-                      value: '0 days',
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   Widget _buildStatCard({
     required IconData icon,
@@ -465,6 +401,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       builder: (context) => const VocabularyListScreen(),
                     ),
                   );
+                },
+              ),
+            ],
+            
+            // Flashcards (only for logged-in users)
+            if (userProvider.isLoggedIn) ...[
+              const SizedBox(height: 16),
+              _buildEnhancedOptionCard(
+                context: context,
+                title: 'Flashcards',
+                subtitle: 'Study with interactive flashcards and spaced repetition',
+                icon: Icons.school,
+                onTap: () {
+                  Navigator.pushNamed(context, '/flashcards');
                 },
               ),
             ],
