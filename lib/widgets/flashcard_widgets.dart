@@ -237,8 +237,8 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
               child: Container(
               width: double.infinity,
               constraints: const BoxConstraints(
-                minHeight: 280,
-                maxHeight: 350,
+                minHeight: 200,
+                maxHeight: 250,
               ),
               decoration: BoxDecoration(
                 gradient: isShowingFront 
@@ -286,123 +286,21 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
 
   Widget _buildFront() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(6),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Decorative icon with better styling
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(40),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.3),
-                width: 2,
-              ),
-            ),
-            child: Icon(
-              Icons.psychology,
-              size: 24,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 16),
-          
           // Main content with better typography
           Flexible(
             child: Text(
               _getFrontContent(),
               style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-                height: 1.3,
-                letterSpacing: 0.3,
-              ),
-              textAlign: TextAlign.center,
-              textDirection: TextDirection.ltr,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(height: 12),
-          
-          // Part of speech with modern styling
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.25),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.4),
-                width: 1,
-              ),
-            ),
-            child: Text(
-              widget.card.partOfSpeech.toUpperCase(),
-              style: const TextStyle(
-                color: Colors.white,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
-                fontSize: 11,
-                letterSpacing: 1.0,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Instruction text with better styling
-          Text(
-            '👆 Tap to reveal answer',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBack() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Decorative icon for answer side
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(40),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.3),
-                width: 2,
-              ),
-            ),
-            child: Icon(
-              Icons.lightbulb,
-              size: 24,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Main answer content
-          Flexible(
-            child: Text(
-              _getBackContent(),
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
                 color: Colors.white,
-                height: 1.3,
-                letterSpacing: 0.2,
+                height: 1.0,
+                letterSpacing: 0.0,
               ),
               textAlign: TextAlign.center,
               textDirection: TextDirection.ltr,
@@ -410,23 +308,92 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(height: 12),
+          // Part of speech removed to save space
+          // const SizedBox(height: 6),
+          // 
+          // // Part of speech with modern styling
+          // Container(
+          //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          //   decoration: BoxDecoration(
+          //     color: Colors.white.withOpacity(0.25),
+          //     borderRadius: BorderRadius.circular(15),
+          //     border: Border.all(
+          //       color: Colors.white.withOpacity(0.4),
+          //       width: 1,
+          //     ),
+          //   ),
+          //   child: Text(
+          //     widget.card.partOfSpeech.toUpperCase(),
+          //     style: const TextStyle(
+          //       color: Colors.white,
+          //       fontWeight: FontWeight.w500,
+          //       fontSize: 9,
+          //       letterSpacing: 0.5,
+          //     ),
+          //   ),
+          // ),
+          // const SizedBox(height: 8),
           
-          // Compact example section
-          if (widget.card.example.isNotEmpty) ...[
-            Flexible(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.2),
-                    width: 1,
-                  ),
+          // Instruction text with better styling - removed to save space
+          // Text(
+          //   '👆 Tap to reveal answer',
+          //   style: TextStyle(
+          //     color: Colors.white.withOpacity(0.8),
+          //     fontSize: 10,
+          //     fontWeight: FontWeight.w500,
+          //     fontStyle: FontStyle.italic,
+          //   ),
+          // ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBack() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Main answer content - flexible space
+          Expanded(
+            flex: 4,
+            child: Center(
+              child: Text(
+                _getBackContent(),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  height: 1.3,
                 ),
+                textAlign: TextAlign.center,
+                textDirection: TextDirection.ltr,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+          
+          // Example section - fixed height to prevent overflow
+          if (widget.card.example.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(
+                minHeight: 60,
+                maxHeight: 80,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              child: SingleChildScrollView(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
@@ -434,32 +401,32 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         color: Colors.white.withOpacity(0.9),
-                        fontSize: 12,
-                        letterSpacing: 0.3,
+                        fontSize: 11,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       widget.card.example,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontStyle: FontStyle.italic,
-                        fontSize: 13,
+                        fontSize: 12,
                         height: 1.2,
                       ),
+                      textAlign: TextAlign.center,
                       textDirection: TextDirection.ltr,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     if (widget.card.exampleTranslation.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       Text(
                         widget.card.exampleTranslation,
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.8),
-                          fontSize: 11,
+                          fontSize: 10,
                           height: 1.1,
                         ),
+                        textAlign: TextAlign.center,
                         textDirection: TextDirection.ltr,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -469,15 +436,17 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
                 ),
               ),
             ),
-            const SizedBox(height: 12),
           ],
           
-          // Instruction text
+          // Spacer to push instruction to bottom
+          const Spacer(),
+          
+          // Instruction text - fixed at bottom
           Text(
             '👆 Tap to flip back',
             style: TextStyle(
               color: Colors.white.withOpacity(0.8),
-              fontSize: 12,
+              fontSize: 10,
               fontWeight: FontWeight.w500,
               fontStyle: FontStyle.italic,
             ),
@@ -597,25 +566,16 @@ class _FlashcardAnswerInputState extends State<FlashcardAnswerInput> {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
-              suffixIcon: widget.isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: Padding(
-                        padding: EdgeInsets.all(12),
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : IconButton(
-                      icon: const Icon(Icons.send),
-                      onPressed: _hasText && !widget.isLoading
-                          ? () {
-                              final answer = _controller.text.trim();
-                              widget.onAnswerChanged?.call(answer);
-                              widget.onSubmit?.call();
-                            }
-                          : null,
-                    ),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.send),
+                onPressed: _hasText && !widget.isLoading
+                    ? () {
+                        final answer = _controller.text.trim();
+                        widget.onAnswerChanged?.call(answer);
+                        widget.onSubmit?.call();
+                      }
+                    : null,
+              ),
             ),
             onChanged: (value) {
               widget.onAnswerChanged?.call(value.trim());

@@ -16,6 +16,7 @@ class FlashcardProvider extends ChangeNotifier {
   bool _isLoadingSession = false;
   bool _isLoadingCard = false;
   bool _isSubmittingAnswer = false;
+  bool _sessionCompleted = false;
 
   // Session history
   List<FlashcardSession> _sessions = [];
@@ -46,6 +47,7 @@ class FlashcardProvider extends ChangeNotifier {
   bool get isLoadingSession => _isLoadingSession;
   bool get isLoadingCard => _isLoadingCard;
   bool get isSubmittingAnswer => _isSubmittingAnswer;
+  bool get sessionCompleted => _sessionCompleted;
   
   List<FlashcardSession> get sessions => _sessions;
   bool get isLoadingSessions => _isLoadingSessions;
@@ -224,11 +226,11 @@ class FlashcardProvider extends ChangeNotifier {
         _sessionStats = result.sessionStats;
         
         if (result.sessionComplete) {
-          // Session completed
-          _isSessionActive = false;
-          _currentCard = null;
-          // Add to sessions history
-          _sessions.insert(0, _currentSession!.copyWith(isActive: false));
+          // Session completed - but keep session active until user explicitly ends it
+          // This allows the completion screen to access session data
+          _sessionCompleted = true;
+          // Don't set _isSessionActive = false yet - let endSession() handle that
+          // Don't set _currentCard = null yet - completion screen might need it
         } else if (result.nextCardAvailable) {
           // Load next card
           await _loadCurrentCard();
@@ -264,12 +266,15 @@ class FlashcardProvider extends ChangeNotifier {
   Future<void> endSession() async {
     if (_currentSession == null) return;
 
+    // Add to sessions history if session was completed
+    if (_sessionCompleted) {
+      _sessions.insert(0, _currentSession!.copyWith(isActive: false));
+    }
+
     _isSessionActive = false;
     _currentCard = null;
+    _sessionCompleted = false; // Reset completion flag
     _sessionStats = null;
-    
-    // Add to sessions history
-    _sessions.insert(0, _currentSession!.copyWith(isActive: false));
     
     notifyListeners();
   }

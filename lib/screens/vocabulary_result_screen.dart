@@ -254,16 +254,22 @@ class _VocabularyResultScreenState extends State<VocabularyResultScreen> {
                       Text(
                         'Topic: ${provider.currentRequest!.topic}',
                         style: Theme.of(context).textTheme.bodyMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Level: ${provider.currentRequest!.level}',
                         style: Theme.of(context).textTheme.bodyMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Language: ${provider.currentRequest!.languageToLearn.capitalize()}',
                         style: Theme.of(context).textTheme.bodyMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                     if (provider.lastResponse != null) ...[

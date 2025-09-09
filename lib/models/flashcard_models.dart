@@ -364,6 +364,7 @@ class FlashcardAnswerResult {
   final bool sessionComplete;
   final bool nextCardAvailable;
   final SessionStats sessionStats;
+  final String? feedback;
 
   const FlashcardAnswerResult({
     required this.success,
@@ -372,6 +373,7 @@ class FlashcardAnswerResult {
     required this.sessionComplete,
     required this.nextCardAvailable,
     required this.sessionStats,
+    this.feedback,
   });
 
   factory FlashcardAnswerResult.fromJson(Map<String, dynamic> json) {
@@ -385,6 +387,7 @@ class FlashcardAnswerResult {
       sessionComplete: result['session_complete'] ?? false,
       nextCardAvailable: result['next_card_available'] ?? false,
       sessionStats: SessionStats.fromJson(result['progress'] ?? result['session_stats'] ?? {}),
+      feedback: result['feedback'],
     );
   }
 }
@@ -657,6 +660,49 @@ class SessionsListResponse {
       sessions: (json['sessions'] as List?)
           ?.map((session) => FlashcardSession.fromJson(session))
           .toList() ?? [],
+    );
+  }
+}
+
+// Helper class to parse enhanced feedback
+class FeedbackContent {
+  final String reasoning;
+  final String? learningTip;
+  final String? encouragement;
+
+  const FeedbackContent({
+    required this.reasoning,
+    this.learningTip,
+    this.encouragement,
+  });
+
+  factory FeedbackContent.fromFeedback(String? feedback) {
+    if (feedback == null || feedback.isEmpty) {
+      return const FeedbackContent(reasoning: '');
+    }
+
+    // Split feedback by the emoji markers
+    final parts = feedback.split('\n\n');
+    String reasoning = '';
+    String? learningTip;
+    String? encouragement;
+
+    for (final part in parts) {
+      final trimmedPart = part.trim();
+      if (trimmedPart.startsWith('💡 Learning Tip:')) {
+        learningTip = trimmedPart.replaceFirst('💡 Learning Tip:', '').trim();
+      } else if (trimmedPart.startsWith('🌟')) {
+        encouragement = trimmedPart.replaceFirst('🌟', '').trim();
+      } else if (trimmedPart.isNotEmpty && !trimmedPart.startsWith('💡') && !trimmedPart.startsWith('🌟')) {
+        // This is the reasoning part
+        reasoning = trimmedPart;
+      }
+    }
+
+    return FeedbackContent(
+      reasoning: reasoning,
+      learningTip: learningTip,
+      encouragement: encouragement,
     );
   }
 }

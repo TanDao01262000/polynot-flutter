@@ -209,7 +209,7 @@ class _FlashcardHomeScreenState extends State<FlashcardHomeScreen> {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          _createQuickSession(provider);
+                          _createQuickSession(provider, 'Quick Practice Session', 3);
                         },
                         icon: const Icon(Icons.play_arrow),
                         label: const Text('Quick Practice'),
@@ -229,7 +229,7 @@ class _FlashcardHomeScreenState extends State<FlashcardHomeScreen> {
               
               const SizedBox(height: 24),
               
-              // Custom Session Section
+              // Quick Session Options
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -254,13 +254,13 @@ class _FlashcardHomeScreenState extends State<FlashcardHomeScreen> {
                     Row(
                       children: [
                         Icon(
-                          Icons.settings,
-                          color: Colors.grey[600],
+                          Icons.flash_on,
+                          color: Colors.orange[600],
                           size: 24,
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Custom Session',
+                          'Quick Sessions',
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: const Color(0xFF2D3748),
@@ -270,27 +270,52 @@ class _FlashcardHomeScreenState extends State<FlashcardHomeScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Create a personalized study session with your preferences',
+                      'Choose from preset study sessions for different learning goals',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Colors.grey[600],
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          _showCustomSessionDialog(provider);
-                        },
-                        icon: const Icon(Icons.tune),
-                        label: const Text('Create Custom Session'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
+                    const SizedBox(height: 20),
+                    
+                    // Quick session options
+                    _buildQuickSessionOption(
+                      context,
+                      provider,
+                      'Quick Practice',
+                      '3 cards • 2-3 minutes',
+                      Icons.play_arrow,
+                      Colors.blue,
+                      () => _createQuickSession(provider, 'Quick Practice Session', 3),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildQuickSessionOption(
+                      context,
+                      provider,
+                      'Short Study',
+                      '10 cards • 5-8 minutes',
+                      Icons.school,
+                      Colors.green,
+                      () => _createQuickSession(provider, 'Short Study Session', 10),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildQuickSessionOption(
+                      context,
+                      provider,
+                      'Medium Session',
+                      '20 cards • 10-15 minutes',
+                      Icons.timer,
+                      Colors.orange,
+                      () => _createQuickSession(provider, 'Medium Study Session', 20),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildQuickSessionOption(
+                      context,
+                      provider,
+                      'Long Study',
+                      '30 cards • 15-25 minutes',
+                      Icons.fitness_center,
+                      Colors.purple,
+                      () => _createQuickSession(provider, 'Long Study Session', 30),
                     ),
                   ],
                 ),
@@ -404,12 +429,21 @@ class _FlashcardHomeScreenState extends State<FlashcardHomeScreen> {
     );
   }
 
-  Future<void> _createQuickSession(FlashcardProvider provider) async {
+  void _resetForNewSession() {
+    // This method is called when starting a new session from the home screen
+    // The actual UI state reset will happen in the study screen
+    print('🔄 STARTING NEW SESSION - UI state will be reset in study screen');
+  }
+
+  Future<void> _createQuickSession(FlashcardProvider provider, String sessionName, int maxCards) async {
+    // Reset UI state for new session
+    _resetForNewSession();
+    
     final request = CreateSessionRequest(
-      sessionName: 'Quick Practice Session',
+      sessionName: sessionName,
       sessionType: 'daily_review',
       studyMode: 'practice',
-      maxCards: 3,
+      maxCards: maxCards,
       includeReviewed: false,
       includeFavorites: false,
       difficultyFilter: [],
@@ -431,14 +465,86 @@ class _FlashcardHomeScreenState extends State<FlashcardHomeScreen> {
     // Navigation is handled automatically by the main screen
   }
 
-  void _showCustomSessionDialog(FlashcardProvider provider) {
-    showDialog(
-      context: context,
-      builder: (context) => CustomSessionDialog(
-        provider: provider,
-        onSessionCreated: () {
-          Navigator.pop(context);
-        },
+  Widget _buildQuickSessionOption(
+    BuildContext context,
+    FlashcardProvider provider,
+    String title,
+    String subtitle,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: provider.isLoadingSession ? null : onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2D3748),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (provider.isLoadingSession)
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: color,
+                    size: 16,
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -516,6 +622,8 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
   bool _isFlipped = false;
   bool _showDifficultyRating = false;
   bool _isSubmittingAnswer = false;
+  bool _isLoadingNextCard = false;
+  bool _canProceedToNext = false;
   DateTime? _startTime;
   // String? _selectedDifficultyRating; // Commented out - not using difficulty rating
   String _userAnswer = '';
@@ -539,6 +647,8 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
       // _showDifficultyRating = false; // Commented out - not using difficulty rating
       // _selectedDifficultyRating = null; // Commented out - not using difficulty rating
       _lastAnswerResult = null;
+      _canProceedToNext = false; // Reset button state for new card
+      _isLoadingNextCard = false; // Reset loading state for new card
       _startTime = DateTime.now();
     });
     
@@ -546,6 +656,20 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _answerFocusNode.requestFocus();
     });
+  }
+
+  void _resetForNewSession() {
+    setState(() {
+      _userAnswer = ''; // Clear the user answer
+      _isFlipped = false;
+      _lastAnswerResult = null; // Reset session completion state
+      _canProceedToNext = false; // Reset button state
+      _isSubmittingAnswer = false; // Reset submission state
+      _isLoadingNextCard = false; // Reset loading state
+      _startTime = DateTime.now();
+    });
+    
+    print('🔄 RESET FOR NEW SESSION - cleared all UI state');
   }
 
   @override
@@ -568,15 +692,26 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
           return const Center(child: CircularProgressIndicator());
         }
 
+        // Don't automatically show completion screen - let user see their final answer result first
+        // The completion screen will be shown when they click "View Results" button
+
         // Check if we have a current card
         if (provider.currentCard == null) {
-          return _buildSessionComplete();
+          return _buildNoSession();
         }
 
         return Scaffold(
           appBar: AppBar(
             title: Text(provider.currentSession?.sessionName ?? 'Study'),
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                // End the session and go back to flashcard main screen
+                provider.endSession();
+                Navigator.pop(context);
+              },
+            ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.stop),
@@ -627,7 +762,7 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
                         _userAnswer = answer;
                       });
                     },
-                    isLoading: _isSubmittingAnswer,
+                    isLoading: _isSubmittingAnswer || _canProceedToNext,
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -647,44 +782,123 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
                 //   ),
                 // ],
 
-                // Simple Next Card Button (temporary replacement for difficulty rating)
+                // Feedback and Next Card Buttons
                 const SizedBox(height: 16),
-                Visibility(
-                  visible: _isFlipped && _lastAnswerResult != null && !_lastAnswerResult!.sessionComplete,
-                  maintainSize: true,
-                  maintainAnimation: true,
-                  maintainState: true,
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isSubmittingAnswer ? null : () => _proceedToNextCard(provider),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                // Always show buttons - no visibility constraint
+                Column(
+                    children: [
+                      
+                      // Session Complete Message
+                      if (_lastAnswerResult?.sessionComplete == true) ...[
+                        // Debug: Print session completion status
+                        Builder(
+                          builder: (context) {
+                            print('🎯 UI: Showing session complete message');
+                            return const SizedBox.shrink();
+                          },
                         ),
-                      ),
-                      child: _isSubmittingAnswer
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.green.shade200,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.celebration,
+                                color: Colors.green.shade600,
+                                size: 20,
                               ),
-                            )
-                          : const Text(
-                              'Next Card',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Session Complete! Tap "View Results" to see your performance.',
+                                  style: TextStyle(
+                                    color: Colors.green.shade700,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      
+                      // Dual Button System: Show Details + Next Card/View Stats
+                      Row(
+                        children: [
+                          // Show Details Button (always available)
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: (_isSubmittingAnswer || !_canProceedToNext) ? null : () => _showDetailedFeedback(),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.blue,
+                                side: const BorderSide(color: Colors.blue, width: 2),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text(
+                                'Show Details',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
-                    ),
+                          ),
+                          const SizedBox(width: 12),
+                          // Next Card or View Stats Button
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: (_isSubmittingAnswer || _isLoadingNextCard || !_canProceedToNext) ? null : () => _proceedToNextCard(provider),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _lastAnswerResult?.sessionComplete == true 
+                                    ? Colors.green 
+                                    : Colors.blue,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: _isLoadingNextCard
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    )
+                                  : Builder(
+                                      builder: (context) {
+                                        final isComplete = _lastAnswerResult?.sessionComplete == true;
+                                        print('🎯 UI: Button text - sessionComplete: $isComplete');
+                                        return Text(
+                                          isComplete ? 'View Stats' : 'Next Card',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ),
 
                 // Feedback shown via SnackBar (no inline feedback to avoid layout shift)
               ],
@@ -697,9 +911,19 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
 
   Future<void> _submitAnswer(FlashcardProvider provider) async {
     if (_userAnswer.trim().isEmpty) return;
+    
+    // Prevent multiple submissions - check immediately
+    if (_isSubmittingAnswer) {
+      print('🚫 PREVENTING DOUBLE SUBMIT - already submitting');
+      return;
+    }
 
+    // Set flag immediately to prevent race condition
+    _isSubmittingAnswer = true;
+    print('🚀 STARTING SUBMIT - _isSubmittingAnswer set to true immediately');
+    
     setState(() {
-      _isSubmittingAnswer = true;
+      // State is already set above, this just triggers rebuild
     });
     
     // Calculate response time
@@ -724,6 +948,7 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
           _lastAnswerResult = result;
           _isFlipped = true;
           _isSubmittingAnswer = false;
+          _canProceedToNext = true;
         });
         
         // Show immediate feedback
@@ -731,8 +956,9 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
         
         // Check if session is complete
         if (result.sessionComplete) {
-          print('🎯 SESSION COMPLETE - showing completion dialog');
-          _showSessionComplete(provider, result);
+          print('🎯 SESSION COMPLETE - last card answered, user can review result');
+          // Don't show completion dialog immediately, let user review the result
+          // The completion dialog will be shown when they try to proceed to next card
         } else {
           // Answer submitted successfully - feedback shown
           print('✅ ANSWER SUBMITTED - feedback shown');
@@ -754,8 +980,15 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
   Future<void> _proceedToNextCard(FlashcardProvider provider) async {
     print('🔄 PROCEEDING TO NEXT CARD');
 
+    // Check if session is complete from the last answer result
+    if (_lastAnswerResult != null && _lastAnswerResult!.sessionComplete) {
+      print('🎯 SESSION COMPLETE - showing completion screen');
+      _showSessionComplete(provider, _lastAnswerResult!);
+      return;
+    }
+
     setState(() {
-      _isSubmittingAnswer = true;
+      _isLoadingNextCard = true;
     });
 
     // Get the next card (answer was already submitted with difficulty rating)
@@ -794,7 +1027,7 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
     }
     
     setState(() {
-      _isSubmittingAnswer = false;
+      _isLoadingNextCard = false;
     });
   }
 
@@ -871,26 +1104,400 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
   }
 
   void _showFeedback(bool isCorrect) {
+    if (_lastAnswerResult == null) return;
+    
+    final result = _lastAnswerResult!;
+    final confidenceScore = result.confidenceScore;
+    final confidenceText = _getConfidenceText(confidenceScore);
+    
+    // Parse feedback to get a brief learning tip
+    final feedbackContent = FeedbackContent.fromFeedback(result.feedback);
+    final briefTip = feedbackContent.learningTip?.split('.')[0]; // Get first sentence
+    
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
           children: [
             Icon(
               isCorrect ? Icons.check_circle : Icons.cancel,
               color: Colors.white,
             ),
             const SizedBox(width: 8),
-            Text(
+                Expanded(
+                  child: Text(
               isCorrect ? 'Correct! Well done!' : 'Not quite right, but keep learning!',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
-              ),
+                    ),
+                  ),
+                ),
+              ],
             ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.psychology,
+                  color: Colors.white.withOpacity(0.8),
+                  size: 16,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'AI Confidence: $confidenceText',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            if (briefTip != null && briefTip.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Text('💡', style: TextStyle(fontSize: 14)),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      briefTip,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
         backgroundColor: isCorrect ? Colors.green : Colors.orange,
-        duration: const Duration(milliseconds: 1500),
+        duration: const Duration(milliseconds: 3000),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
+  }
+
+  String _getConfidenceText(double confidenceScore) {
+    if (confidenceScore >= 0.9) return 'Very High (${(confidenceScore * 100).toInt()}%)';
+    if (confidenceScore >= 0.7) return 'High (${(confidenceScore * 100).toInt()}%)';
+    if (confidenceScore >= 0.5) return 'Medium (${(confidenceScore * 100).toInt()}%)';
+    return 'Low (${(confidenceScore * 100).toInt()}%)';
+  }
+
+  void _showDetailedFeedback() {
+    if (_lastAnswerResult == null) return;
+    
+    final result = _lastAnswerResult!;
+    final provider = context.read<FlashcardProvider>();
+    final currentCard = provider.currentCard;
+    
+    if (currentCard == null) return;
+    
+    // Parse the enhanced feedback
+    final feedbackContent = FeedbackContent.fromFeedback(result.feedback);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              result.correct ? Icons.check_circle : Icons.cancel,
+              color: result.correct ? Colors.green : Colors.orange,
+            ),
+            const SizedBox(width: 8),
+            Text(result.correct ? 'Correct Answer!' : 'Answer Review'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Question
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Question:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue.shade700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      currentCard.word,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // User's Answer
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Your Answer:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange.shade700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _userAnswer,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Correct Answer
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Correct Answer:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      currentCard.definition,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // AI Analysis
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.purple.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.psychology,
+                          color: Colors.purple.shade700,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'AI Analysis',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.purple.shade700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Confidence Score: ${_getConfidenceText(result.confidenceScore)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Result: ${result.correct ? "Correct" : "Incorrect"}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Enhanced Feedback Section
+              if (feedbackContent.reasoning.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.indigo.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.feedback,
+                            color: Colors.indigo.shade700,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'AI Feedback',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.indigo.shade700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        feedbackContent.reasoning,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              
+              // Learning Tip Section
+              if (feedbackContent.learningTip != null && feedbackContent.learningTip!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text('💡', style: TextStyle(fontSize: 16)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Learning Tip',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber.shade700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        feedbackContent.learningTip!,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              
+              // Encouragement Section
+              if (feedbackContent.encouragement != null && feedbackContent.encouragement!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.pink.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.pink.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text('🌟', style: TextStyle(fontSize: 16)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Encouragement',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.pink.shade700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        feedbackContent.encouragement!,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }
@@ -904,91 +1511,58 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
       );
   }
 
-  void _showSessionComplete(FlashcardProvider provider, FlashcardAnswerResult result) {
-    // Preserve session stats before showing dialog (since endSession() will clear them)
-    final sessionStats = provider.sessionStats;
+  Future<void> _createQuickSession(FlashcardProvider provider, String sessionName, int maxCards) async {
+    // Reset UI state for new session
+    _resetForNewSession();
     
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              Icons.celebration,
-              color: (sessionStats?.accuracyPercentage ?? 0) >= 70 ? Colors.green : Colors.orange,
-            ),
-            const SizedBox(width: 8),
-            const Text('Session Complete!'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              (sessionStats?.accuracyPercentage ?? 0) >= 70
-                  ? 'Excellent work! You\'ve completed this session with great results.'
-                  : 'Good job! You\'ve completed this session. Keep practicing to improve!',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            if (sessionStats != null)
-              SessionStatsDisplay(
-                stats: sessionStats,
-                accentColor: sessionStats.accuracyPercentage >= 70 
-                    ? Colors.green 
-                    : Colors.orange,
-              ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.lightbulb, color: Colors.blue.shade600, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Your progress has been saved. Keep studying to improve your vocabulary!',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.blue.shade700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
-              Navigator.pop(context); // Go back to flashcard home
-              provider.endSession();
-            },
-            child: const Text('Finish'),
+    final request = CreateSessionRequest(
+      sessionName: sessionName,
+      sessionType: 'daily_review',
+      studyMode: 'practice',
+      maxCards: maxCards,
+      includeReviewed: false,
+      includeFavorites: false,
+      difficultyFilter: [],
+      smartSelection: true,
+    );
+
+    final response = await provider.createSession(request);
+    
+    if (response == null || !response.success) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(provider.sessionError ?? 'Failed to create session'),
+            backgroundColor: Colors.red,
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // Close dialog
+        );
+      }
+    }
+    // Navigation is handled automatically by the main screen
+  }
+
+  void _showSessionComplete(FlashcardProvider provider, FlashcardAnswerResult result) {
+    // Navigate to the session completion screen instead of showing a dialog
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SessionCompletionScreen(
+          sessionStats: result.sessionStats,
+          sessionName: provider.currentSession?.sessionName ?? 'Study Session',
+            onStartNewSession: () {
               Navigator.pop(context); // Go back to flashcard home
               provider.endSession();
-              // Navigate to create new session
               Future.delayed(const Duration(milliseconds: 100), () {
                 if (mounted && context.mounted) {
-                  Navigator.pushNamed(context, '/flashcards/create-session');
+                  _createQuickSession(provider, 'Quick Practice Session', 3);
                 }
               });
             },
-            child: const Text('Start New Session'),
-          ),
-        ],
+          onFinish: () {
+            Navigator.pop(context); // Go back to flashcard home
+            provider.endSession();
+          },
+        ),
       ),
     );
   }
@@ -1011,291 +1585,348 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
     );
   }
 
-  Widget _buildSessionComplete() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.check_circle, size: 64, color: Colors.green),
-          SizedBox(height: 16),
-          Text(
-            'Session Complete!',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 8),
-          Text('Great job! You\'ve finished this session.'),
-        ],
-      ),
-    );
-  }
 }
 
-// Custom session creation dialog
-class CustomSessionDialog extends StatefulWidget {
-  final FlashcardProvider provider;
-  final VoidCallback onSessionCreated;
 
-  const CustomSessionDialog({
+// Session completion screen with detailed stats and options
+class SessionCompletionScreen extends StatelessWidget {
+  final SessionStats sessionStats;
+  final String sessionName;
+  final VoidCallback onStartNewSession;
+  final VoidCallback onFinish;
+
+  const SessionCompletionScreen({
     super.key,
-    required this.provider,
-    required this.onSessionCreated,
+    required this.sessionStats,
+    required this.sessionName,
+    required this.onStartNewSession,
+    required this.onFinish,
   });
 
   @override
-  State<CustomSessionDialog> createState() => _CustomSessionDialogState();
-}
-
-class _CustomSessionDialogState extends State<CustomSessionDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final _sessionNameController = TextEditingController();
-  
-  String _selectedStudyMode = 'practice';
-  String _selectedSessionType = 'daily_review';
-  int _maxCards = 20;
-  bool _smartSelection = true;
-  bool _includeReviewed = false;
-  bool _includeFavorites = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _sessionNameController.text = 'Custom Study Session';
-  }
-
-  @override
-  void dispose() {
-    _sessionNameController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Create Custom Session'),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    final theme = Theme.of(context);
+    final isGoodPerformance = sessionStats.accuracyPercentage >= 70;
+    final accentColor = isGoodPerformance ? Colors.green : Colors.orange;
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Session Complete'),
+        backgroundColor: theme.colorScheme.inversePrimary,
+        automaticallyImplyLeading: false, // Remove back button
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            
+            // Celebration header
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    accentColor.withOpacity(0.1),
+                    accentColor.withOpacity(0.05),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: accentColor.withOpacity(0.3),
+                  width: 2,
+                ),
+              ),
+              child: Column(
+                children: [
+                  // Celebration icon
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: accentColor.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isGoodPerformance ? Icons.celebration : Icons.check_circle,
+                      size: 48,
+                      color: accentColor,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Title
+                  Text(
+                    'Session Complete!',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: accentColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  // Session name
+                  Text(
+                    sessionName,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Performance message
+                  Text(
+                    isGoodPerformance
+                        ? 'Excellent work! You\'ve completed this session with great results.'
+                        : 'Good job! You\'ve completed this session. Keep practicing to improve!',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 32),
+            
+            // Detailed stats
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Colors.grey.withOpacity(0.2),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.analytics,
+                        color: accentColor,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Session Statistics',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: accentColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Stats grid
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          'Correct',
+                          sessionStats.correctAnswers.toString(),
+                          Colors.green,
+                          Icons.check_circle,
+                          theme,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Incorrect',
+                          sessionStats.incorrectAnswers.toString(),
+                          Colors.red,
+                          Icons.cancel,
+                          theme,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          'Accuracy',
+                          '${sessionStats.accuracyPercentage.toStringAsFixed(1)}%',
+                          accentColor,
+                          Icons.trending_up,
+                          theme,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Total Cards',
+                          (sessionStats.correctAnswers + sessionStats.incorrectAnswers).toString(),
+                          Colors.blue,
+                          Icons.style,
+                          theme,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 32),
+            
+            // Progress tip
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.blue.shade200,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.lightbulb,
+                    color: Colors.blue.shade600,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Keep Learning!',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Your progress has been saved. Regular practice will help you master these vocabulary words!',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: Colors.blue.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 40),
+            
+            // Action buttons
+            Column(
               children: [
-                // Session Name
-                TextFormField(
-                  controller: _sessionNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Session Name',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a session name';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Study Mode
-                Text(
-                  'Study Mode',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: _selectedStudyMode,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                  ),
-                  items: widget.provider.studyModes.map((mode) {
-                    return DropdownMenuItem(
-                      value: mode.value,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(mode.name),
-                          Text(
-                            mode.description,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
+                // Start New Session button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: onStartNewSession,
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Start New Session'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accentColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedStudyMode = value;
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Session Type
-                Text(
-                  'Session Type',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+                      elevation: 2,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: _selectedSessionType,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                  ),
-                  items: widget.provider.sessionTypes.map((type) {
-                    return DropdownMenuItem(
-                      value: type.value,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(type.name),
-                          Text(
-                            type.description,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
+                const SizedBox(height: 12),
+                
+                // Finish button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: onFinish,
+                    icon: const Icon(Icons.home),
+                    label: const Text('Back to Home'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.grey[600],
+                      side: BorderSide(color: Colors.grey[300]!),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedSessionType = value;
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Max Cards
-                Text(
-                  'Number of Cards',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Slider(
-                  value: _maxCards.toDouble(),
-                  min: 5,
-                  max: 50,
-                  divisions: 9,
-                  label: _maxCards.toString(),
-                  onChanged: (value) {
-                    setState(() {
-                      _maxCards = value.round();
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Options
-                Text(
-                  'Options',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                CheckboxListTile(
-                  title: const Text('Smart Selection'),
-                  subtitle: const Text('AI-powered card selection'),
-                  value: _smartSelection,
-                  onChanged: (value) {
-                    setState(() {
-                      _smartSelection = value ?? true;
-                    });
-                  },
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
-                CheckboxListTile(
-                  title: const Text('Include Reviewed'),
-                  subtitle: const Text('Include previously reviewed cards'),
-                  value: _includeReviewed,
-                  onChanged: (value) {
-                    setState(() {
-                      _includeReviewed = value ?? false;
-                    });
-                  },
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
-                CheckboxListTile(
-                  title: const Text('Include Favorites'),
-                  subtitle: const Text('Include favorite vocabulary'),
-                  value: _includeFavorites,
-                  onChanged: (value) {
-                    setState(() {
-                      _includeFavorites = value ?? false;
-                    });
-                  },
-                  controlAffinity: ListTileControlAffinity.leading,
                 ),
               ],
             ),
-          ),
+            
+            const SizedBox(height: 20),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: widget.provider.isLoadingSession ? null : _createSession,
-          child: widget.provider.isLoadingSession
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Create Session'),
-        ),
-      ],
     );
   }
 
-  Future<void> _createSession() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    final request = CreateSessionRequest(
-      sessionName: _sessionNameController.text.trim(),
-      sessionType: _selectedSessionType,
-      studyMode: _selectedStudyMode,
-      maxCards: _maxCards,
-      includeReviewed: _includeReviewed,
-      includeFavorites: _includeFavorites,
-      difficultyFilter: [],
-      smartSelection: _smartSelection,
-    );
-
-    final response = await widget.provider.createSession(request);
-    
-    if (response != null && response.success) {
-      widget.onSessionCreated();
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.provider.sessionError ?? 'Failed to create session'),
-            backgroundColor: Colors.red,
+  Widget _buildStatCard(
+    String label,
+    String value,
+    Color color,
+    IconData icon,
+    ThemeData theme,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            color: color,
+            size: 24,
           ),
-        );
-      }
-    }
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: color.withOpacity(0.8),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

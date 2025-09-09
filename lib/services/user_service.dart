@@ -139,7 +139,19 @@ class UserService {
       print('Record Login Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
-        return LoginResponse.fromJson(jsonDecode(response.body));
+        final responseBody = response.body.trim();
+        if (responseBody.isEmpty) {
+          print('WARNING: Empty response body from login endpoint');
+          throw Exception('Empty response from login endpoint');
+        }
+        
+        final jsonData = jsonDecode(responseBody);
+        if (jsonData == null) {
+          print('WARNING: Null JSON data from login endpoint');
+          throw Exception('Null response from login endpoint');
+        }
+        
+        return LoginResponse.fromJson(jsonData);
       } else if (response.statusCode == 404) {
         throw Exception('User not found');
       } else {

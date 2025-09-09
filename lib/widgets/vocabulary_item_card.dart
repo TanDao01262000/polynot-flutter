@@ -15,7 +15,6 @@ class VocabularyItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onSurfaceSubtle = Theme.of(context).colorScheme.onSurface.withOpacity(0.6);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -28,7 +27,7 @@ class VocabularyItemCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -92,44 +91,50 @@ class VocabularyItemCard extends StatelessWidget {
                 ],
               ),
 
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
 
               // Level and part of speech row
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getLevelColor(item.level).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      item.level.toUpperCase(),
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: _getLevelColor(item.level),
-                        fontWeight: FontWeight.w600,
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _getLevelColor(item.level).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        item.level.toUpperCase(),
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: _getLevelColor(item.level),
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      item.partOfSpeech.replaceAll('_', ' '),
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Colors.grey.shade700,
-                        fontWeight: FontWeight.w500,
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        item.partOfSpeech.replaceAll('_', ' '),
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
               // Definition and Example in a new design
               Column(
@@ -137,7 +142,7 @@ class VocabularyItemCard extends StatelessWidget {
                   // Definition with enhanced styling
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
@@ -175,17 +180,20 @@ class VocabularyItemCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Text(
-                              'Definition',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: Colors.green.shade700,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 16,
+                            Expanded(
+                              child: Text(
+                                'Definition',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: Colors.green.shade700,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
                         Text(
                           item.definition,
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -194,18 +202,20 @@ class VocabularyItemCard extends StatelessWidget {
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
                           ),
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
 
                   // Example with enhanced styling
                   if (item.example.isNotEmpty)
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
@@ -243,17 +253,20 @@ class VocabularyItemCard extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                'Example',
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: Colors.blue.shade700,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 16,
+                              Expanded(
+                                child: Text(
+                                  'Example',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: Colors.blue.shade700,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 8),
                           Text(
                             item.example,
                             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -262,6 +275,8 @@ class VocabularyItemCard extends StatelessWidget {
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
                             ),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           if (item.exampleTranslation.isNotEmpty) ...[
                             const SizedBox(height: 8),
@@ -289,6 +304,8 @@ class VocabularyItemCard extends StatelessWidget {
                                         fontWeight: FontWeight.w500,
                                         fontStyle: FontStyle.italic,
                                       ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
