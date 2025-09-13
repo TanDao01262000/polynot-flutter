@@ -35,6 +35,11 @@ class FlashcardProvider extends ChangeNotifier {
   // User ID
   String? _currentUserId;
 
+  // Session configuration
+  int? _selectedCardCount;
+  String? _selectedStudyMode;
+  String? _selectedLevel;
+
   // Getters
   List<StudyMode> get studyModes => _studyModes;
   List<SessionType> get sessionTypes => _sessionTypes;
@@ -61,9 +66,30 @@ class FlashcardProvider extends ChangeNotifier {
   String? get sessionError => _sessionError;
   String? get currentUserId => _currentUserId;
 
+  // Session configuration getters
+  int? get selectedCardCount => _selectedCardCount;
+  String? get selectedStudyMode => _selectedStudyMode;
+  String? get selectedLevel => _selectedLevel;
+
   // Set current user ID for authenticated requests
   void setCurrentUserId(String userId) {
     _currentUserId = userId;
+    notifyListeners();
+  }
+
+  // Session configuration setters
+  void setSelectedCardCount(int count) {
+    _selectedCardCount = count;
+    notifyListeners();
+  }
+
+  void setSelectedStudyMode(String mode) {
+    _selectedStudyMode = mode;
+    notifyListeners();
+  }
+
+  void setSelectedLevel(String level) {
+    _selectedLevel = level;
     notifyListeners();
   }
 
@@ -99,6 +125,11 @@ class FlashcardProvider extends ChangeNotifier {
       _studyModes = results[0] as List<StudyMode>;
       _sessionTypes = results[1] as List<SessionType>;
       _difficultyRatings = results[2] as List<DifficultyRating>;
+
+      // Initialize default session configuration
+      _selectedCardCount ??= 10;
+      _selectedStudyMode ??= 'practice';
+      _selectedLevel ??= 'B1';
 
       _error = null;
     } catch (e) {
@@ -140,7 +171,6 @@ class FlashcardProvider extends ChangeNotifier {
           timeLimitMinutes: request.timeLimitMinutes,
           includeReviewed: request.includeReviewed,
           includeFavorites: request.includeFavorites,
-          difficultyFilter: request.difficultyFilter,
           smartSelection: request.smartSelection,
           totalCards: response.totalCards,
           createdAt: DateTime.now(),
@@ -279,6 +309,40 @@ class FlashcardProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Pause current session (keep it active but hide from UI)
+  Future<void> pauseSession() async {
+    if (_currentSession == null || !_isSessionActive) return;
+
+    // Check if this session is already paused (exists in sessions list)
+    final alreadyPaused = _sessions.any((session) => 
+        session.id == _currentSession!.id && session.isActive == true);
+    
+    if (alreadyPaused) return; // Don't pause the same session multiple times
+
+    // Mark session as paused but keep it active for resuming
+    // The session remains in _currentSession but _isSessionActive becomes false
+    _isSessionActive = false;
+    
+    // Add to sessions history as paused
+    _sessions.insert(0, _currentSession!.copyWith(isActive: true));
+    
+    notifyListeners();
+  }
+
+  // Resume a paused session
+  Future<void> resumeSession(FlashcardSession session) async {
+    _currentSession = session;
+    _isSessionActive = true;
+    
+    // Remove the session from paused sessions list since it's now active
+    _sessions.removeWhere((s) => s.id == session.id && s.isActive == true);
+    
+    // Load the current card for the resumed session
+    await _loadCurrentCard();
+    
+    notifyListeners();
+  }
+
   // Delete a session
   Future<bool> deleteSession(String sessionId) async {
     if (_currentUserId == null) return false;
@@ -346,10 +410,13 @@ class FlashcardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      print('PROVIDER DEBUG: Loading analytics for user: $_currentUserId, days: $days');
       final analytics = await FlashcardService.getAnalytics(_currentUserId!, days: days);
+      print('PROVIDER DEBUG: Analytics result: $analytics');
       _analytics = analytics;
       _error = null;
     } catch (e) {
+      print('PROVIDER DEBUG: Error loading analytics: $e');
       _error = e.toString();
     } finally {
       _isLoadingAnalytics = false;

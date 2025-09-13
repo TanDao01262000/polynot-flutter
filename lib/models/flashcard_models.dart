@@ -29,34 +29,14 @@ class StudyMode {
 
   static const List<StudyMode> defaultModes = [
     StudyMode(
-      value: 'review',
-      name: 'Review Mode',
-      description: 'Show definition, guess the word',
-    ),
-    StudyMode(
       value: 'practice',
       name: 'Practice Mode',
       description: 'Show word, guess the definition',
     ),
     StudyMode(
-      value: 'test',
-      name: 'Test Mode',
-      description: 'Multiple choice questions',
-    ),
-    StudyMode(
-      value: 'write',
-      name: 'Writing Mode',
-      description: 'Type the word from definition',
-    ),
-    StudyMode(
-      value: 'listen',
-      name: 'Listening Mode',
-      description: 'Listen and identify the word',
-    ),
-    StudyMode(
-      value: 'mixed',
-      name: 'Mixed Mode',
-      description: 'Combination of different study modes',
+      value: 'review',
+      name: 'Review Mode',
+      description: 'Show definition, guess the word',
     ),
   ];
 }
@@ -170,7 +150,6 @@ class FlashcardSession {
   final int? timeLimitMinutes;
   final bool includeReviewed;
   final bool includeFavorites;
-  final List<String> difficultyFilter;
   final bool smartSelection;
   final int totalCards;
   final DateTime createdAt;
@@ -188,7 +167,6 @@ class FlashcardSession {
     this.timeLimitMinutes,
     required this.includeReviewed,
     required this.includeFavorites,
-    required this.difficultyFilter,
     required this.smartSelection,
     required this.totalCards,
     required this.createdAt,
@@ -208,7 +186,6 @@ class FlashcardSession {
       timeLimitMinutes: json['time_limit_minutes'],
       includeReviewed: json['include_reviewed'] ?? false,
       includeFavorites: json['include_favorites'] ?? false,
-      difficultyFilter: List<String>.from(json['difficulty_filter'] ?? []),
       smartSelection: json['smart_selection'] ?? false,
       totalCards: json['total_cards'] ?? 0,
       createdAt: json['created_at'] != null 
@@ -231,7 +208,6 @@ class FlashcardSession {
       'time_limit_minutes': timeLimitMinutes,
       'include_reviewed': includeReviewed,
       'include_favorites': includeFavorites,
-      'difficulty_filter': difficultyFilter,
       'smart_selection': smartSelection,
       'total_cards': totalCards,
       'created_at': createdAt.toIso8601String(),
@@ -251,7 +227,6 @@ class FlashcardSession {
     int? timeLimitMinutes,
     bool? includeReviewed,
     bool? includeFavorites,
-    List<String>? difficultyFilter,
     bool? smartSelection,
     int? totalCards,
     DateTime? createdAt,
@@ -269,7 +244,6 @@ class FlashcardSession {
       timeLimitMinutes: timeLimitMinutes ?? this.timeLimitMinutes,
       includeReviewed: includeReviewed ?? this.includeReviewed,
       includeFavorites: includeFavorites ?? this.includeFavorites,
-      difficultyFilter: difficultyFilter ?? this.difficultyFilter,
       smartSelection: smartSelection ?? this.smartSelection,
       totalCards: totalCards ?? this.totalCards,
       createdAt: createdAt ?? this.createdAt,
@@ -460,6 +434,13 @@ class FlashcardAnalytics {
   final double studyTimeMinutes;
   final List<String> mostStudiedTopics;
   final Map<String, int> difficultyBreakdown;
+  final int? correctAnswers;
+  final int? incorrectAnswers;
+  final double? averageResponseTime;
+  final Map<String, int>? studyModeDistribution;
+  final Map<String, int>? timeDistribution;
+  final Map<String, dynamic>? dailyPerformance;
+  final List<String>? recommendations;
 
   const FlashcardAnalytics({
     required this.periodDays,
@@ -470,19 +451,61 @@ class FlashcardAnalytics {
     required this.studyTimeMinutes,
     required this.mostStudiedTopics,
     required this.difficultyBreakdown,
+    this.correctAnswers,
+    this.incorrectAnswers,
+    this.averageResponseTime,
+    this.studyModeDistribution,
+    this.timeDistribution,
+    this.dailyPerformance,
+    this.recommendations,
   });
 
   factory FlashcardAnalytics.fromJson(Map<String, dynamic> json) {
+    // Debug the full JSON first
+    print('DEBUG: Full JSON response: $json');
+    
+    // Handle nested analytics object
+    final analytics = json['analytics'] ?? json;
+    
+    // Debug logging
+    print('DEBUG: Full analytics object: $analytics');
+    print('DEBUG: correct_answers = ${analytics['correct_answers']}');
+    print('DEBUG: incorrect_answers = ${analytics['incorrect_answers']}');
+    print('DEBUG: average_response_time = ${analytics['average_response_time']}');
+    print('DEBUG: total_cards_studied = ${analytics['total_cards_studied']}');
+    
     return FlashcardAnalytics(
-      periodDays: json['period_days'] ?? 0,
-      totalSessions: json['total_sessions'] ?? 0,
-      cardsStudied: json['cards_studied'] ?? 0,
-      accuracyPercentage: (json['accuracy_percentage'] ?? 0.0).toDouble(),
-      improvementTrend: json['improvement_trend'] ?? '',
-      studyTimeMinutes: (json['study_time_minutes'] ?? 0.0).toDouble(),
-      mostStudiedTopics: List<String>.from(json['most_studied_topics'] ?? []),
-      difficultyBreakdown: Map<String, int>.from(json['difficulty_breakdown'] ?? {}),
+      periodDays: analytics['period_days'] ?? 0,
+      totalSessions: analytics['total_sessions'] ?? 0,
+      cardsStudied: analytics['total_cards_studied'] ?? 0,
+      accuracyPercentage: (analytics['accuracy_percentage'] ?? 0.0).toDouble(),
+      improvementTrend: analytics['improvement_trend'] ?? 'stable',
+      studyTimeMinutes: _calculateStudyTime(analytics),
+      mostStudiedTopics: List<String>.from(analytics['most_studied_topics'] ?? []),
+      difficultyBreakdown: Map<String, int>.from(analytics['difficulty_breakdown'] ?? {}),
+      correctAnswers: (analytics['correct_answers'] ?? 0) as int,
+      incorrectAnswers: (analytics['incorrect_answers'] ?? 0) as int,
+      averageResponseTime: (analytics['average_response_time'] ?? 0.0).toDouble(),
+      studyModeDistribution: analytics['study_mode_distribution'] != null 
+          ? Map<String, int>.from(analytics['study_mode_distribution'])
+          : null,
+      timeDistribution: analytics['time_distribution'] != null
+          ? Map<String, int>.from(analytics['time_distribution'])
+          : null,
+      dailyPerformance: analytics['daily_performance'],
+      recommendations: analytics['recommendations'] != null
+          ? List<String>.from(analytics['recommendations'])
+          : null,
     );
+  }
+
+  static double _calculateStudyTime(Map<String, dynamic> analytics) {
+    final totalCards = analytics['total_cards_studied'] ?? 0;
+    final avgResponseTime = analytics['average_response_time'] ?? 0.0;
+    
+    // Calculate total study time: total cards * average response time per card
+    // Convert from seconds to minutes
+    return (totalCards * avgResponseTime) / 60.0;
   }
 }
 
@@ -497,7 +520,6 @@ class CreateSessionRequest {
   final int? timeLimitMinutes;
   final bool includeReviewed;
   final bool includeFavorites;
-  final List<String> difficultyFilter;
   final bool smartSelection;
 
   const CreateSessionRequest({
@@ -511,7 +533,6 @@ class CreateSessionRequest {
     this.timeLimitMinutes,
     required this.includeReviewed,
     required this.includeFavorites,
-    required this.difficultyFilter,
     required this.smartSelection,
   });
 
@@ -527,7 +548,6 @@ class CreateSessionRequest {
       'time_limit_minutes': timeLimitMinutes,
       'include_reviewed': includeReviewed,
       'include_favorites': includeFavorites,
-      'difficulty_filter': difficultyFilter,
       'smart_selection': smartSelection,
     };
   }

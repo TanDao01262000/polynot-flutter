@@ -4,6 +4,7 @@ import '../models/flashcard_models.dart';
 import '../providers/flashcard_provider.dart';
 import '../providers/user_provider.dart';
 import '../widgets/flashcard_widgets.dart';
+import 'flashcard_stats_screen.dart';
 
 // Main flashcard screen with navigation
 class FlashcardMainScreen extends StatefulWidget {
@@ -15,18 +16,25 @@ class FlashcardMainScreen extends StatefulWidget {
 
 class _FlashcardMainScreenState extends State<FlashcardMainScreen> {
   int _selectedIndex = 0;
+  bool _hasAutoNavigated = false;
 
   @override
   Widget build(BuildContext context) {
     return Consumer2<UserProvider, FlashcardProvider>(
       builder: (context, userProvider, flashcardProvider, child) {
-        // Auto-navigate to study screen when session is created
-        if (flashcardProvider.isSessionActive && _selectedIndex != 1) {
+        // Auto-navigate to study screen when session is first created (only once)
+        if (flashcardProvider.isSessionActive && !_hasAutoNavigated) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             setState(() {
               _selectedIndex = 1;
+              _hasAutoNavigated = true;
             });
           });
+        }
+        
+        // Reset auto-navigation flag when session ends
+        if (!flashcardProvider.isSessionActive && _hasAutoNavigated) {
+          _hasAutoNavigated = false;
         }
         if (!userProvider.isLoggedIn) {
           return Scaffold(
@@ -85,14 +93,43 @@ class _FlashcardMainScreenState extends State<FlashcardMainScreen> {
           ),
           bottomNavigationBar: BottomNavigationBar(
             currentIndex: _selectedIndex,
-            onTap: (index) => setState(() => _selectedIndex = index),
-            items: const [
+            onTap: (index) {
+              // Allow switching to any tab, but show a gentle reminder if leaving study during active session
+              if (flashcardProvider.isSessionActive && _selectedIndex == 1 && index != 1) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Session is still active - you can return to Study tab anytime'),
+                    duration: const Duration(seconds: 2),
+                    backgroundColor: Colors.blue,
+                  ),
+                );
+              }
+              setState(() => _selectedIndex = index);
+            },
+            items: [
               BottomNavigationBarItem(
                 icon: Icon(Icons.home),
                 label: 'Home',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.school),
+                icon: Stack(
+                  children: [
+                    Icon(Icons.school),
+                    if (flashcardProvider.isSessionActive)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
                 label: 'Study',
               ),
               BottomNavigationBarItem(
@@ -105,6 +142,7 @@ class _FlashcardMainScreenState extends State<FlashcardMainScreen> {
       },
     );
   }
+
 }
 
 // Home screen for creating sessions
@@ -199,7 +237,7 @@ class _FlashcardHomeScreenState extends State<FlashcardHomeScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Start with a quick 3-card practice session',
+                      'Start with default settings or customize your session below',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Colors.grey[600],
                       ),
@@ -209,10 +247,10 @@ class _FlashcardHomeScreenState extends State<FlashcardHomeScreen> {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          _createQuickSession(provider, 'Quick Practice Session', 3);
+                          _createCustomSession(provider);
                         },
-                        icon: const Icon(Icons.play_arrow),
-                        label: const Text('Quick Practice'),
+                        icon: const Icon(Icons.flash_on),
+                        label: const Text('Quick Start (Default Settings)'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF667eea),
                           foregroundColor: Colors.white,
@@ -229,97 +267,8 @@ class _FlashcardHomeScreenState extends State<FlashcardHomeScreen> {
               
               const SizedBox(height: 24),
               
-              // Quick Session Options
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.grey.withOpacity(0.2),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.flash_on,
-                          color: Colors.orange[600],
-                          size: 24,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Quick Sessions',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF2D3748),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Choose from preset study sessions for different learning goals',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    
-                    // Quick session options
-                    _buildQuickSessionOption(
-                      context,
-                      provider,
-                      'Quick Practice',
-                      '3 cards • 2-3 minutes',
-                      Icons.play_arrow,
-                      Colors.blue,
-                      () => _createQuickSession(provider, 'Quick Practice Session', 3),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildQuickSessionOption(
-                      context,
-                      provider,
-                      'Short Study',
-                      '10 cards • 5-8 minutes',
-                      Icons.school,
-                      Colors.green,
-                      () => _createQuickSession(provider, 'Short Study Session', 10),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildQuickSessionOption(
-                      context,
-                      provider,
-                      'Medium Session',
-                      '20 cards • 10-15 minutes',
-                      Icons.timer,
-                      Colors.orange,
-                      () => _createQuickSession(provider, 'Medium Study Session', 20),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildQuickSessionOption(
-                      context,
-                      provider,
-                      'Long Study',
-                      '30 cards • 15-25 minutes',
-                      Icons.fitness_center,
-                      Colors.purple,
-                      () => _createQuickSession(provider, 'Long Study Session', 30),
-                    ),
-                  ],
-                ),
-              ),
+              // Custom Session Configuration
+              _buildCustomSessionConfiguration(context, provider),
               
               const SizedBox(height: 24),
               
@@ -339,18 +288,20 @@ class _FlashcardHomeScreenState extends State<FlashcardHomeScreen> {
                     itemCount: provider.sessions.take(5).length,
                     itemBuilder: (context, index) {
                       final session = provider.sessions[index];
-                      return Container(
-                        width: 200,
-                        margin: const EdgeInsets.only(right: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: session.isActive ? Colors.green.shade50 : Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: session.isActive ? Colors.green.shade200 : Colors.grey.shade200,
-                            width: 1,
+                      return GestureDetector(
+                        onTap: session.isActive ? () => _resumeSession(provider, session) : null,
+                        child: Container(
+                          width: 200,
+                          margin: const EdgeInsets.only(right: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: session.isActive ? Colors.blue.shade50 : Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: session.isActive ? Colors.blue.shade200 : Colors.grey.shade200,
+                              width: 1,
+                            ),
                           ),
-                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -376,11 +327,11 @@ class _FlashcardHomeScreenState extends State<FlashcardHomeScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: Colors.green,
+                                  color: Colors.blue,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Text(
-                                  'Active',
+                                  'Paused',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 10,
@@ -397,6 +348,7 @@ class _FlashcardHomeScreenState extends State<FlashcardHomeScreen> {
                                 ),
                               ),
                           ],
+                        ),
                         ),
                       );
                     },
@@ -435,119 +387,6 @@ class _FlashcardHomeScreenState extends State<FlashcardHomeScreen> {
     print('🔄 STARTING NEW SESSION - UI state will be reset in study screen');
   }
 
-  Future<void> _createQuickSession(FlashcardProvider provider, String sessionName, int maxCards) async {
-    // Reset UI state for new session
-    _resetForNewSession();
-    
-    final request = CreateSessionRequest(
-      sessionName: sessionName,
-      sessionType: 'daily_review',
-      studyMode: 'practice',
-      maxCards: maxCards,
-      includeReviewed: false,
-      includeFavorites: false,
-      difficultyFilter: [],
-      smartSelection: true,
-    );
-
-    final response = await provider.createSession(request);
-    
-    if (response == null || !response.success) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(provider.sessionError ?? 'Failed to create session'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-    // Navigation is handled automatically by the main screen
-  }
-
-  Widget _buildQuickSessionOption(
-    BuildContext context,
-    FlashcardProvider provider,
-    String title,
-    String subtitle,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: provider.isLoadingSession ? null : onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: color,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF2D3748),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (provider.isLoadingSession)
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    color: color,
-                    size: 16,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Future<void> _loadExistingSessions(FlashcardProvider provider) async {
     try {
@@ -570,16 +409,19 @@ class _FlashcardHomeScreenState extends State<FlashcardHomeScreen> {
                     trailing: session.isActive 
                         ? const Icon(Icons.play_circle, color: Colors.green)
                         : const Icon(Icons.check_circle, color: Colors.grey),
-                    onTap: () {
+                    onTap: () async {
                       Navigator.pop(context);
                       if (session.isActive) {
-                        // For now, just show a message - resume functionality would need to be implemented
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Resume functionality coming soon'),
-                            backgroundColor: Colors.orange,
-                          ),
-                        );
+                        // Resume the paused session
+                        await provider.resumeSession(session);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Resumed session: ${session.sessionName}'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
                       }
                     },
                   );
@@ -600,6 +442,376 @@ class _FlashcardHomeScreenState extends State<FlashcardHomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load sessions: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildCustomSessionConfiguration(BuildContext context, FlashcardProvider provider) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.grey.withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.settings,
+                color: Colors.blue[600],
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Session Configuration',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF2D3748),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Customize your study session to match your learning goals',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 20),
+          
+          // Number of Cards Slider
+          _buildCardCountSlider(context, provider),
+          const SizedBox(height: 20),
+          
+          // Study Mode Dropdown
+          _buildStudyModeDropdown(context, provider),
+          const SizedBox(height: 20),
+          
+          // Level Selection
+          _buildLevelSelector(context, provider),
+          const SizedBox(height: 24),
+          
+          // Start Session Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: provider.isLoadingSession ? null : () {
+                _createCustomSession(provider);
+              },
+              icon: provider.isLoadingSession 
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(Icons.play_arrow),
+              label: Text(provider.isLoadingSession ? 'Creating Session...' : 'Start Study Session'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF667eea),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCardCountSlider(BuildContext context, FlashcardProvider provider) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Number of Cards',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              '${provider.selectedCardCount ?? 10}',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Colors.blue[600],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Slider(
+          value: (provider.selectedCardCount ?? 10).toDouble(),
+          min: 3,
+          max: 50,
+          divisions: 47,
+          activeColor: Colors.blue[600],
+          inactiveColor: Colors.grey[300],
+          onChanged: (value) {
+            provider.setSelectedCardCount(value.round());
+          },
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('3', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+            Text('50', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStudyModeDropdown(BuildContext context, FlashcardProvider provider) {
+    final studyModes = [
+      {'value': 'practice', 'label': 'Practice Mode', 'description': 'Show word, guess definition'},
+      {'value': 'review', 'label': 'Review Mode', 'description': 'Show definition, guess word'},
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Study Mode',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '2 modes available',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.blue.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: provider.selectedStudyMode ?? 'practice',
+              isExpanded: true,
+              items: studyModes.map((mode) {
+                return DropdownMenuItem<String>(
+                  value: mode['value']!,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        mode['label']!,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        mode['description']!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  provider.setSelectedStudyMode(value);
+                }
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLevelSelector(BuildContext context, FlashcardProvider provider) {
+    final levels = [
+      {'value': 'mixed', 'label': 'Mixed - All Levels', 'color': Colors.blue, 'isSpecial': true},
+      {'value': 'A1', 'label': 'A1 - Beginner', 'color': Colors.green, 'isSpecial': false},
+      {'value': 'A2', 'label': 'A2 - Elementary', 'color': Colors.lightGreen, 'isSpecial': false},
+      {'value': 'B1', 'label': 'B1 - Intermediate', 'color': Colors.orange, 'isSpecial': false},
+      {'value': 'B2', 'label': 'B2 - Upper Intermediate', 'color': Colors.deepOrange, 'isSpecial': false},
+      {'value': 'C1', 'label': 'C1 - Advanced', 'color': Colors.red, 'isSpecial': false},
+      {'value': 'C2', 'label': 'C2 - Proficient', 'color': Colors.purple, 'isSpecial': false},
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Language Level',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Select the language proficiency level for your vocabulary',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[300]!),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: provider.selectedLevel ?? 'B1',
+              isExpanded: true,
+              items: levels.map((level) {
+                final isSpecial = level['isSpecial'] as bool;
+                return DropdownMenuItem<String>(
+                  value: level['value'] as String,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: level['color'] as Color,
+                          shape: isSpecial ? BoxShape.rectangle : BoxShape.circle,
+                          borderRadius: isSpecial ? BorderRadius.circular(2) : null,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          level['label'] as String,
+                          style: isSpecial 
+                            ? const TextStyle(fontWeight: FontWeight.w600)
+                            : null,
+                        ),
+                      ),
+                      if (isSpecial)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'All Levels',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  provider.setSelectedLevel(value);
+                }
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _createCustomSession(FlashcardProvider provider) async {
+    // Reset UI state for new session
+    _resetForNewSession();
+    
+    final selectedLevel = provider.selectedLevel ?? 'B1';
+    final request = CreateSessionRequest(
+      sessionName: 'Custom Study Session',
+      sessionType: 'daily_review',
+      studyMode: provider.selectedStudyMode ?? 'practice',
+      level: selectedLevel == 'mixed' ? null : selectedLevel,
+      maxCards: provider.selectedCardCount ?? 10,
+      includeReviewed: false,
+      includeFavorites: false,
+      smartSelection: true,
+    );
+
+    final response = await provider.createSession(request);
+    
+    if (response == null || !response.success) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(provider.sessionError ?? 'Failed to create session'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+    // Navigation is handled automatically by the main screen
+  }
+
+  Future<void> _resumeSession(FlashcardProvider provider, FlashcardSession session) async {
+    try {
+      await provider.resumeSession(session);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Resumed session: ${session.sessionName}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to resume session: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -706,11 +918,7 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
-              onPressed: () {
-                // End the session and go back to flashcard main screen
-                provider.endSession();
-                Navigator.pop(context);
-              },
+              onPressed: () => _showExitSessionDialog(provider),
             ),
             actions: [
               IconButton(
@@ -1067,6 +1275,70 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
     );
   }
 
+  void _showExitSessionDialog(FlashcardProvider provider) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.pause_circle, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('Exit Session'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'What would you like to do with your current session?',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '• Pause: Save progress and resume later\n'
+              '• End: Complete the session permanently\n'
+              '• Cancel: Continue studying',
+              style: TextStyle(fontSize: 14),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              provider.pauseSession();
+              // Navigate to flashcard home screen instead of just popping
+              Navigator.pushReplacementNamed(context, '/flashcards');
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.blue,
+              side: const BorderSide(color: Colors.blue),
+            ),
+            child: const Text('Pause Session'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              provider.endSession();
+              // Navigate to flashcard home screen instead of just popping
+              Navigator.pushReplacementNamed(context, '/flashcards');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('End Session'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showEndSessionDialog(FlashcardProvider provider) {
     showDialog(
       context: context,
@@ -1090,7 +1362,8 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
             onPressed: () {
               Navigator.pop(context); // Close dialog
               provider.endSession();
-              Navigator.pop(context); // Go back to flashcard home
+              // Navigate to flashcard home screen instead of just popping
+              Navigator.pushReplacementNamed(context, '/flashcards');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
@@ -1522,7 +1795,6 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
       maxCards: maxCards,
       includeReviewed: false,
       includeFavorites: false,
-      difficultyFilter: [],
       smartSelection: true,
     );
 
@@ -1550,7 +1822,8 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
           sessionStats: result.sessionStats,
           sessionName: provider.currentSession?.sessionName ?? 'Study Session',
             onStartNewSession: () {
-              Navigator.pop(context); // Go back to flashcard home
+              // Navigate to flashcard home screen instead of just popping
+              Navigator.pushReplacementNamed(context, '/flashcards');
               provider.endSession();
               Future.delayed(const Duration(milliseconds: 100), () {
                 if (mounted && context.mounted) {
@@ -1930,14 +2203,4 @@ class SessionCompletionScreen extends StatelessWidget {
   }
 }
 
-// Simple stats screen
-class FlashcardStatsScreen extends StatelessWidget {
-  const FlashcardStatsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Stats Screen - Coming Soon'),
-    );
-  }
-}
+// Stats screen is now imported from flashcard_stats_screen.dart

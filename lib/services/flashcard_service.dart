@@ -247,15 +247,20 @@ class FlashcardService {
       final response = await http.get(uri, headers: _getHeaders(userUuid));
       _log('Status: ${response.statusCode}');
       _log('Response: ${_trimBody(response.body)}');
+      print('SERVICE DEBUG: Status code: ${response.statusCode}');
+      print('SERVICE DEBUG: Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        print('SERVICE DEBUG: Parsed JSON data: $data');
         return FlashcardAnalytics.fromJson(data);
       } else {
+        print('SERVICE DEBUG: API call failed with status: ${response.statusCode}');
         _log('Failed to get analytics: ${response.statusCode}');
         return null;
       }
     } catch (e) {
+      print('SERVICE DEBUG: Exception occurred: $e');
       _log('Error getting analytics: $e');
       return null;
     }

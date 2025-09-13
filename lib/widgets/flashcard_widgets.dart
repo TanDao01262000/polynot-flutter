@@ -462,10 +462,6 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
       case 'review':
         return widget.card.definition;
       case 'practice':
-      case 'test':
-      case 'write':
-      case 'listen':
-      case 'mixed':
       default:
         return widget.card.word;
     }
@@ -477,10 +473,6 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
       case 'review':
         return widget.card.word;
       case 'practice':
-      case 'test':
-      case 'write':
-      case 'listen':
-      case 'mixed':
       default:
         return widget.card.definition;
     }
@@ -599,13 +591,6 @@ class _FlashcardAnswerInputState extends State<FlashcardAnswerInput> {
         return 'What is the word?';
       case 'practice':
         return 'What does this word mean?';
-      case 'write':
-        return 'Type the word:';
-      case 'listen':
-        return 'What word did you hear?';
-      case 'test':
-        return 'Select the correct answer:';
-      case 'mixed':
       default:
         return 'Your answer:';
     }
@@ -617,13 +602,6 @@ class _FlashcardAnswerInputState extends State<FlashcardAnswerInput> {
         return 'Enter the word...';
       case 'practice':
         return 'Enter the definition...';
-      case 'write':
-        return 'Type the word...';
-      case 'listen':
-        return 'Enter the word you heard...';
-      case 'test':
-        return 'Choose an option...';
-      case 'mixed':
       default:
         return 'Enter your answer...';
     }
