@@ -225,7 +225,14 @@ class _VocabularyGenerationScreenState extends State<VocabularyGenerationScreen>
                   filled: true,
                 ),
                 items: _languagesToLearn
-                    .map((language) => DropdownMenuItem(value: language, child: Text(language.capitalize())))
+                    .map((language) => DropdownMenuItem(
+                      value: language, 
+                      child: Text(
+                        language.capitalize(),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ))
                     .toList(),
                 onChanged: (value) => setState(() => _selectedLanguageToLearn = value!),
               ),
@@ -246,7 +253,14 @@ class _VocabularyGenerationScreenState extends State<VocabularyGenerationScreen>
                   filled: true,
                 ),
                 items: _nativeLanguages
-                    .map((language) => DropdownMenuItem(value: language, child: Text(language.capitalize())))
+                    .map((language) => DropdownMenuItem(
+                      value: language, 
+                      child: Text(
+                        language.capitalize(),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ))
                     .toList(),
                 onChanged: (value) => setState(() => _selectedNativeLanguage = value!),
               ),
@@ -267,7 +281,14 @@ class _VocabularyGenerationScreenState extends State<VocabularyGenerationScreen>
                   filled: true,
                 ),
                 items: _levels
-                    .map((level) => DropdownMenuItem(value: level, child: Text('$level - ${_getLevelDescription(level)}')))
+                    .map((level) => DropdownMenuItem(
+                      value: level, 
+                      child: Text(
+                        '$level - ${_getLevelDescription(level)}',
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ))
                     .toList(),
                 onChanged: (value) => setState(() => _selectedLevel = value!),
               ),

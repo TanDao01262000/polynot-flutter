@@ -519,6 +519,36 @@ class _UserProfileEditScreenState extends State<UserProfileEditScreen> {
             : _lastNameController?.text.trim(),
       );
 
+      // Debug: Print the actual values being sent
+      print('=== PROFILE UPDATE DEBUG ===');
+      print('Selected User Level: $_selectedUserLevel');
+      print('Selected Target Language: $_selectedTargetLanguage');
+      print('First Name Controller Text: "${_firstNameController?.text}"');
+      print('Last Name Controller Text: "${_lastNameController?.text}"');
+      print('Request User Level: ${request.userLevel}');
+      print('Request Target Language: ${request.targetLanguage}');
+      print('Request First Name: ${request.firstName}');
+      print('Request Last Name: ${request.lastName}');
+
+      // Check if there are any actual changes to update
+      final hasChanges = request.userLevel != null || 
+                        request.targetLanguage != null || 
+                        request.firstName != null || 
+                        request.lastName != null;
+      
+      print('Has Changes: $hasChanges');
+      print('========================');
+
+      if (!hasChanges) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No changes to update'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
       final success = await userProvider.updateUserProfile(userName, request);
       
       if (success && mounted) {

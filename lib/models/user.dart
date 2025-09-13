@@ -276,6 +276,10 @@ class UserProfileUpdateRequest {
     if (targetLanguage != null) data['target_language'] = targetLanguage;
     if (firstName != null) data['first_name'] = firstName;
     if (lastName != null) data['last_name'] = lastName;
+    
+    // Debug: Print the data being sent
+    print('UserProfileUpdateRequest data: $data');
+    
     return data;
   }
 }
@@ -295,16 +299,22 @@ class UserLevelUpdateRequest {
 }
 
 class LoginResponse {
+  final User user;
+  final String sessionToken;
   final int streakDays;
   final DateTime lastLogin;
 
   LoginResponse({
+    required this.user,
+    required this.sessionToken,
     required this.streakDays,
     required this.lastLogin,
   });
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
     return LoginResponse(
+      user: User.fromJson(json['user']),
+      sessionToken: json['session_token'],
       streakDays: json['streak_days'],
       lastLogin: DateTime.parse(json['last_login']),
     );

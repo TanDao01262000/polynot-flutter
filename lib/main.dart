@@ -7,7 +7,9 @@ import 'screens/user_registration_screen.dart';
 import 'services/partner_service.dart';
 import 'providers/vocabulary_provider.dart';
 import 'providers/user_provider.dart';
+import 'providers/flashcard_provider.dart';
 import 'screens/vocabulary_list_screen.dart';
+import 'screens/flashcard_screens.dart';
 
 void main() async {
   // Load environment variables
@@ -35,6 +37,7 @@ class MyApp extends StatelessWidget{
       providers: [
         ChangeNotifierProvider(create: (_) => VocabularyProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => FlashcardProvider()),
       ],
       child: MaterialApp(
         title: "Polynot",
@@ -47,6 +50,7 @@ class MyApp extends StatelessWidget{
           '/login': (context) => const UserLoginScreen(),
           '/register': (context) => const UserRegistrationScreen(),
           '/vocabulary-list': (context) => const VocabularyListScreen(),
+          '/flashcards': (context) => const FlashcardMainScreen(),
         },
         debugShowCheckedModeBanner: false,
       ),

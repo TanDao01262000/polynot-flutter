@@ -142,8 +142,8 @@ class UserProvider with ChangeNotifier {
       _setLoading(true);
       clearError();
       
-      final user = await UserService.authenticateUser(userName, password);
-      _currentUser = user;
+      final loginResponse = await UserService.authenticateUser(userName, password);
+      _currentUser = loginResponse.user;
       _setLoading(false);
       notifyListeners();
       
@@ -264,4 +264,5 @@ class UserProvider with ChangeNotifier {
   List<String> getValidUserLevels() {
     return UserService.getValidUserLevels();
   }
+
 }
