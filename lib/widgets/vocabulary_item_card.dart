@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/vocabulary_item.dart';
+import 'tts_widgets.dart';
 
 class VocabularyItemCard extends StatelessWidget {
   final VocabularyItem item;
@@ -12,6 +13,12 @@ class VocabularyItemCard extends StatelessWidget {
     this.onTap,
     this.onProgressTap,
   });
+
+  void _speakDefinition(VocabularyItem item) {
+    // For now, we'll use a simple approach
+    // In the future, this could be enhanced to use TTS service for definitions
+    print('Speaking definition: ${item.definition}');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,17 +46,30 @@ class VocabularyItemCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Word and translation stacked vertically
-                        Text(
-                          item.word,
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 28,
-                            color: Theme.of(context).colorScheme.primary,
-                            letterSpacing: 0.5,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        // Word with TTS button
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.word,
+                                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 28,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  letterSpacing: 0.5,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            TTSButton(
+                              vocabularyItem: item,
+                              version: 'normal',
+                              size: 20,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ],
                         ),
                         if (item.translation.isNotEmpty) ...[
                           const SizedBox(height: 4),
@@ -194,16 +214,38 @@ class VocabularyItemCard extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          item.definition,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.green.shade900,
-                            height: 1.6,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.definition,
+                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                  color: Colors.green.shade900,
+                                  height: 1.6,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 4,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => _speakDefinition(item),
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade100,
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Icon(
+                                  Icons.volume_up,
+                                  size: 16,
+                                  color: Colors.green.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

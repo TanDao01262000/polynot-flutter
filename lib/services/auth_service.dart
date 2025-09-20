@@ -11,11 +11,11 @@ class AuthService {
   
   static String get baseUrl => dotenv.env['LOCAL_API_ENDPOINT'] ?? 'http://localhost:8000';
 
-  // Login with username and password
-  static Future<LoginResponse> login(String username, String password) async {
+  // Login with email and password
+  static Future<LoginResponse> login(String email, String password) async {
     try {
       // Use UserService for authentication (which now includes proper password validation)
-      final loginResponse = await UserService.authenticateUser(username, password);
+      final loginResponse = await UserService.authenticateUser(email, password);
       
       // Store session token in SharedPreferences
       final prefs = await SharedPreferences.getInstance();

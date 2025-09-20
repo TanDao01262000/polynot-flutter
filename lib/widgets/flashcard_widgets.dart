@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/flashcard_models.dart';
+import '../models/vocabulary_item.dart';
+import 'tts_widgets.dart';
 
 // Progress indicator for flashcard sessions
 class FlashcardProgressIndicator extends StatelessWidget {
@@ -157,6 +159,8 @@ class FlashcardWidget extends StatefulWidget {
   final VoidCallback? onFlip;
   final bool showAnswer;
   final bool isFlipped;
+  final VocabularyItem? vocabularyItem;
+  final bool showTTS;
 
   const FlashcardWidget({
     super.key,
@@ -165,6 +169,8 @@ class FlashcardWidget extends StatefulWidget {
     this.onFlip,
     this.showAnswer = false,
     this.isFlipped = false,
+    this.vocabularyItem,
+    this.showTTS = true,
   });
 
   @override
@@ -308,42 +314,17 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          // Part of speech removed to save space
-          // const SizedBox(height: 6),
-          // 
-          // // Part of speech with modern styling
-          // Container(
-          //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          //   decoration: BoxDecoration(
-          //     color: Colors.white.withOpacity(0.25),
-          //     borderRadius: BorderRadius.circular(15),
-          //     border: Border.all(
-          //       color: Colors.white.withOpacity(0.4),
-          //       width: 1,
-          //     ),
-          //   ),
-          //   child: Text(
-          //     widget.card.partOfSpeech.toUpperCase(),
-          //     style: const TextStyle(
-          //       color: Colors.white,
-          //       fontWeight: FontWeight.w500,
-          //       fontSize: 9,
-          //       letterSpacing: 0.5,
-          //     ),
-          //   ),
-          // ),
-          // const SizedBox(height: 8),
           
-          // Instruction text with better styling - removed to save space
-          // Text(
-          //   '👆 Tap to reveal answer',
-          //   style: TextStyle(
-          //     color: Colors.white.withOpacity(0.8),
-          //     fontSize: 10,
-          //     fontWeight: FontWeight.w500,
-          //     fontStyle: FontStyle.italic,
-          //   ),
-          // ),
+          // TTS button for front content
+          if (widget.showTTS && widget.vocabularyItem != null) ...[
+            const SizedBox(height: 8),
+            TTSButton(
+              vocabularyItem: widget.vocabularyItem!,
+              version: 'normal',
+              size: 16,
+              color: Colors.white,
+            ),
+          ],
         ],
       ),
     );
@@ -358,18 +339,34 @@ class _FlashcardWidgetState extends State<FlashcardWidget>
           Expanded(
             flex: 4,
             child: Center(
-              child: Text(
-                _getBackContent(),
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                  height: 1.3,
-                ),
-                textAlign: TextAlign.center,
-                textDirection: TextDirection.ltr,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _getBackContent(),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      height: 1.3,
+                    ),
+                    textAlign: TextAlign.center,
+                    textDirection: TextDirection.ltr,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  
+                  // TTS button for back content
+                  if (widget.showTTS && widget.vocabularyItem != null) ...[
+                    const SizedBox(height: 8),
+                    TTSButton(
+                      vocabularyItem: widget.vocabularyItem!,
+                      version: 'normal',
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                  ],
+                ],
               ),
             ),
           ),

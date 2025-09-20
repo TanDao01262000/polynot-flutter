@@ -437,13 +437,13 @@ class VocabularyService {
   // Get vocabulary list with pagination and filtering
   static Future<VocabularyListResponse> getVocabularyList(
     VocabularyListRequest request, {
-    String? userUuid,
+    String? sessionToken,
   }) async {
     _log('Base URL: $baseUrl');
     
     // Use different endpoints based on whether user is logged in
     String endpoint;
-    if (userUuid != null) {
+    if (sessionToken != null) {
       // For logged-in users, get their personal vocabulary
       endpoint = '/vocab/user-saved';
     } else {
@@ -462,8 +462,11 @@ class VocabularyService {
     final headers = <String, String>{
       'Content-Type': 'application/json',
     };
-    if (userUuid != null) {
-      headers['Authorization'] = 'Bearer $userUuid';
+    if (sessionToken != null) {
+      headers['Authorization'] = 'Bearer $sessionToken';
+      _log('🔐 Using session token for authentication: ${sessionToken.substring(0, 20)}...');
+    } else {
+      _log('🔐 No session token provided - using unauthenticated request');
     }
     
     try {
@@ -473,7 +476,7 @@ class VocabularyService {
 
       if (response.statusCode == 200) {
         return VocabularyListResponse.fromJson(jsonDecode(response.body));
-      } else if (response.statusCode == 404 && userUuid != null) {
+      } else if (response.statusCode == 404 && sessionToken != null) {
         // If user-specific endpoint doesn't exist, fall back to general endpoint
         _log('User-specific endpoint not found, falling back to general endpoint');
         final fallbackUri = Uri.parse('$baseUrl/vocab/list').replace(
@@ -493,7 +496,7 @@ class VocabularyService {
   }
 
   // Toggle favorite status
-  static Future<bool> toggleFavorite(String vocabEntryId, String userUuid) async {
+  static Future<bool> toggleFavorite(String vocabEntryId, String sessionToken) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/favorite');
     _log('POST $uri');
@@ -502,7 +505,7 @@ class VocabularyService {
       final response = await http.post(
         uri,
         headers: {
-          'Authorization': 'Bearer $userUuid',
+          'Authorization': 'Bearer $sessionToken',
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
@@ -522,7 +525,7 @@ class VocabularyService {
   }
 
   // Hide vocabulary temporarily
-  static Future<bool> hideVocabulary(String vocabEntryId, String userUuid, {DateTime? hiddenUntil}) async {
+  static Future<bool> hideVocabulary(String vocabEntryId, String sessionToken, {DateTime? hiddenUntil}) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/hide');
     _log('POST $uri');
@@ -531,7 +534,7 @@ class VocabularyService {
       final response = await http.post(
         uri,
         headers: {
-          'Authorization': 'Bearer $userUuid',
+          'Authorization': 'Bearer $sessionToken',
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
@@ -552,7 +555,7 @@ class VocabularyService {
   }
 
   // Unhide vocabulary
-  static Future<bool> unhideVocabulary(String vocabEntryId, String userUuid) async {
+  static Future<bool> unhideVocabulary(String vocabEntryId, String sessionToken) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/hide');
     _log('POST $uri (unhide)');
@@ -568,7 +571,7 @@ class VocabularyService {
       final response = await http.post(
         uri,
         headers: {
-          'Authorization': 'Bearer $userUuid',
+          'Authorization': 'Bearer $sessionToken',
           'Content-Type': 'application/json',
         },
         body: jsonEncode(requestBody),
@@ -585,7 +588,7 @@ class VocabularyService {
   }
 
   // Add personal notes
-  static Future<bool> addNote(String vocabEntryId, String userUuid, String note) async {
+  static Future<bool> addNote(String vocabEntryId, String sessionToken, String note) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/note');
     _log('POST $uri');
@@ -609,7 +612,7 @@ class VocabularyService {
       final response = await http.post(
         uri,
         headers: {
-          'Authorization': 'Bearer $userUuid',
+          'Authorization': 'Bearer $sessionToken',
           'Content-Type': 'application/json',
         },
         body: jsonEncode(requestBody),
@@ -626,7 +629,7 @@ class VocabularyService {
   }
 
   // Rate difficulty
-  static Future<bool> rateDifficulty(String vocabEntryId, String userUuid, int rating) async {
+  static Future<bool> rateDifficulty(String vocabEntryId, String sessionToken, int rating) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/rate');
     _log('POST $uri');
@@ -644,7 +647,7 @@ class VocabularyService {
       final response = await http.post(
         uri,
         headers: {
-          'Authorization': 'Bearer $userUuid',
+          'Authorization': 'Bearer $sessionToken',
           'Content-Type': 'application/json',
         },
         body: jsonEncode(requestBody),
@@ -661,7 +664,7 @@ class VocabularyService {
   }
 
   // Mark as reviewed
-  static Future<bool> markAsReviewed(String vocabEntryId, String userUuid) async {
+  static Future<bool> markAsReviewed(String vocabEntryId, String sessionToken) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/review');
     _log('POST $uri');
@@ -670,7 +673,7 @@ class VocabularyService {
       final response = await http.post(
         uri,
         headers: {
-          'Authorization': 'Bearer $userUuid',
+          'Authorization': 'Bearer $sessionToken',
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
@@ -690,7 +693,7 @@ class VocabularyService {
   }
 
   // Unmark as reviewed
-  static Future<bool> unmarkAsReviewed(String vocabEntryId, String userUuid) async {
+  static Future<bool> unmarkAsReviewed(String vocabEntryId, String sessionToken) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/review/undo');
     _log('POST $uri (unmark reviewed)');
@@ -706,7 +709,7 @@ class VocabularyService {
       final response = await http.post(
         uri,
         headers: {
-          'Authorization': 'Bearer $userUuid',
+          'Authorization': 'Bearer $sessionToken',
           'Content-Type': 'application/json',
         },
         body: jsonEncode(requestBody),
@@ -725,7 +728,7 @@ class VocabularyService {
   // Create vocabulary list
   static Future<VocabularyPersonalList?> createVocabularyList(
     CreateVocabularyListRequest request,
-    String userUuid,
+    String sessionToken,
   ) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/lists');
@@ -735,7 +738,7 @@ class VocabularyService {
       final response = await http.post(
         uri,
         headers: {
-          'Authorization': 'Bearer $userUuid',
+          'Authorization': 'Bearer $sessionToken',
           'Content-Type': 'application/json',
         },
         body: jsonEncode(request.toJson()),
@@ -756,7 +759,7 @@ class VocabularyService {
   }
 
   // Get user's vocabulary lists
-  static Future<List<VocabularyPersonalList>> getVocabularyLists(String userUuid) async {
+  static Future<List<VocabularyPersonalList>> getVocabularyLists(String sessionToken) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/lists');
     _log('GET $uri');
@@ -765,7 +768,7 @@ class VocabularyService {
       final response = await http.get(
         uri,
         headers: {
-          'Authorization': 'Bearer $userUuid',
+          'Authorization': 'Bearer $sessionToken',
           'Content-Type': 'application/json',
         },
       );
@@ -788,7 +791,7 @@ class VocabularyService {
 }
 
   // Get list contents
-  static Future<List<VocabularyItem>> getListContents(String listId, String userUuid) async {
+  static Future<List<VocabularyItem>> getListContents(String listId, String sessionToken) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/lists/$listId');
     _log('GET $uri');
@@ -797,7 +800,7 @@ class VocabularyService {
       final response = await http.get(
         uri,
         headers: {
-          'Authorization': 'Bearer $userUuid',
+          'Authorization': 'Bearer $sessionToken',
           'Content-Type': 'application/json',
         },
       );
@@ -818,7 +821,7 @@ class VocabularyService {
   }
 
   // Add vocabulary to list
-  static Future<bool> addToVocabularyList(String listId, String vocabEntryId, String userUuid) async {
+  static Future<bool> addToVocabularyList(String listId, String vocabEntryId, String sessionToken) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/lists/$listId/add');
     _log('POST $uri');
@@ -827,7 +830,7 @@ class VocabularyService {
       final response = await http.post(
         uri,
         headers: {
-          'Authorization': 'Bearer $userUuid',
+          'Authorization': 'Bearer $sessionToken',
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
@@ -846,7 +849,7 @@ class VocabularyService {
   }
 
   // Remove vocabulary from list
-  static Future<bool> removeFromVocabularyList(String listId, String vocabEntryId, String userUuid) async {
+  static Future<bool> removeFromVocabularyList(String listId, String vocabEntryId, String sessionToken) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/lists/$listId/remove');
     _log('DELETE $uri');
@@ -855,7 +858,7 @@ class VocabularyService {
       final response = await http.delete(
         uri,
         headers: {
-          'Authorization': 'Bearer $userUuid',
+          'Authorization': 'Bearer $sessionToken',
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
@@ -874,7 +877,7 @@ class VocabularyService {
   }
 
   // Save individual vocabulary entry
-  static Future<bool> saveVocabularyEntry(String vocabEntryId, String userUuid, {VocabularyItem? item}) async {
+  static Future<bool> saveVocabularyEntry(String vocabEntryId, String sessionToken, {VocabularyItem? item}) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/save');
     _log('POST $uri');
@@ -911,7 +914,7 @@ class VocabularyService {
       final response = await http.post(
         uri,
         headers: {
-          'Authorization': 'Bearer $userUuid', // Updated to use Bearer format
+          'Authorization': 'Bearer $sessionToken', // Updated to use Bearer format
           'Content-Type': 'application/json',
         },
         body: jsonEncode(requestBody),
@@ -954,7 +957,7 @@ class VocabularyService {
   }
 
   // Test method to save a test vocabulary entry
-  static Future<bool> testSaveVocabulary(String userUuid) async {
+  static Future<bool> testSaveVocabulary(String sessionToken) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/test-save');
     _log('POST $uri');
@@ -963,7 +966,7 @@ class VocabularyService {
       final response = await http.post(
         uri,
         headers: {
-          'Authorization': 'Bearer $userUuid',
+          'Authorization': 'Bearer $sessionToken',
           'Content-Type': 'application/json',
         },
       );
@@ -979,7 +982,7 @@ class VocabularyService {
   }
 
   // Test method to get user's saved vocabulary
-  static Future<VocabularyListResponse?> testGetUserVocabulary(String userUuid) async {
+  static Future<VocabularyListResponse?> testGetUserVocabulary(String sessionToken) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/vocab/test-list');
     _log('GET $uri');
@@ -988,7 +991,7 @@ class VocabularyService {
       final response = await http.get(
         uri,
         headers: {
-          'Authorization': 'Bearer $userUuid',
+          'Authorization': 'Bearer $sessionToken',
           'Content-Type': 'application/json',
         },
       );

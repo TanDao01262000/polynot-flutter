@@ -46,6 +46,13 @@ class VocabularyProvider extends ChangeNotifier {
     _currentUserId = userId;
   }
 
+  // Set session token for authenticated requests
+  void setSessionToken(String sessionToken) {
+    print('🔐 VocabularyProvider: Setting session token: ${sessionToken.substring(0, 20)}...');
+    _currentUserId = sessionToken; // Using _currentUserId to store session token for now
+    notifyListeners();
+  }
+
   // Clear current user ID
   void clearCurrentUserId() {
     _currentUserId = null;
@@ -60,11 +67,12 @@ class VocabularyProvider extends ChangeNotifier {
     notifyListeners();
 
     print('Provider: Loading vocabulary list with request: ${request.toJson()}');
+    print('🔐 Provider: Current session token: ${_currentUserId != null ? _currentUserId!.substring(0, 20) + "..." : "NULL"}');
 
     try {
       final response = await VocabularyService.getVocabularyList(
         request,
-        userUuid: _currentUserId,
+        sessionToken: _currentUserId, // Now contains session token
       );
       
       _lastListResponse = response;

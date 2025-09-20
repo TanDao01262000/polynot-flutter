@@ -12,14 +12,14 @@ class UserLoginScreen extends StatefulWidget {
 
 class _UserLoginScreenState extends State<UserLoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _userNameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _userNameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -35,15 +35,23 @@ class _UserLoginScreenState extends State<UserLoginScreen> {
 
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final userName = _userNameController.text.trim();
+      final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
       
       // Authenticate user with password
-      final success = await userProvider.authenticateUser(userName, password);
+      final success = await userProvider.authenticateUser(email, password);
       
       if (success && mounted) {
-        // Record login
-        await userProvider.recordUserLogin(userName);
+        // Record login using the username from the authenticated user
+        final userName = userProvider.currentUser?.userName;
+        if (userName != null) {
+          try {
+            await userProvider.recordUserLogin(userName);
+          } catch (e) {
+            print('Warning: Failed to record user login: $e');
+            // Don't show error to user as this is not critical
+          }
+        }
         
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -110,18 +118,22 @@ class _UserLoginScreenState extends State<UserLoginScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // Username field
+                  // Email field
                   TextFormField(
-                    controller: _userNameController,
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
-                      labelText: 'Username',
-                      hintText: 'Enter your username',
-                      prefixIcon: Icon(Icons.person),
+                      labelText: 'Email',
+                      hintText: 'Enter your email address',
+                      prefixIcon: Icon(Icons.email),
                       border: OutlineInputBorder(),
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Username is required';
+                        return 'Email is required';
+                      }
+                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                        return 'Please enter a valid email address';
                       }
                       return null;
                     },

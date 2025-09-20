@@ -6,6 +6,7 @@ class UserProvider with ChangeNotifier {
   User? _currentUser;
   UserProfile? _userProfile;
   UserStatistics? _userStatistics;
+  String? _sessionToken;
   bool _isLoading = false;
   String? _error;
 
@@ -13,9 +14,10 @@ class UserProvider with ChangeNotifier {
   User? get currentUser => _currentUser;
   UserProfile? get userProfile => _userProfile;
   UserStatistics? get userStatistics => _userStatistics;
+  String? get sessionToken => _sessionToken;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  bool get isLoggedIn => _currentUser != null;
+  bool get isLoggedIn => _currentUser != null && _sessionToken != null;
 
   // Clear error
   void clearError() {
@@ -117,8 +119,8 @@ class UserProvider with ChangeNotifier {
       
       final loginResponse = await UserService.recordUserLogin(userName);
       
-      // Update statistics if we have them
-      if (_userStatistics != null) {
+      // Update statistics if we have them and login response is available
+      if (_userStatistics != null && loginResponse != null) {
         _userStatistics = UserStatistics(
           totalConversations: _userStatistics!.totalConversations,
           totalMessages: _userStatistics!.totalMessages,
@@ -137,13 +139,15 @@ class UserProvider with ChangeNotifier {
   }
 
   // Authenticate user with password
-  Future<bool> authenticateUser(String userName, String password) async {
+  Future<bool> authenticateUser(String email, String password) async {
     try {
       _setLoading(true);
       clearError();
       
-      final loginResponse = await UserService.authenticateUser(userName, password);
+      final loginResponse = await UserService.authenticateUser(email, password);
       _currentUser = loginResponse.user;
+      _sessionToken = loginResponse.sessionToken;
+      print('🔐 UserProvider: Session token stored: ${_sessionToken != null ? _sessionToken!.substring(0, 20) + "..." : "NULL"}');
       _setLoading(false);
       notifyListeners();
       
@@ -230,6 +234,7 @@ class UserProvider with ChangeNotifier {
     _currentUser = null;
     _userProfile = null;
     _userStatistics = null;
+    _sessionToken = null;
     _error = null;
     _isLoading = false;
     notifyListeners();

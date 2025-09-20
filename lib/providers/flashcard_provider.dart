@@ -119,7 +119,7 @@ class FlashcardProvider extends ChangeNotifier {
       final results = await Future.wait([
         FlashcardService.getStudyModes(),
         FlashcardService.getSessionTypes(),
-        FlashcardService.getDifficultyRatings(),
+        FlashcardService.getDifficultyRatings(_currentUserId),
       ]);
 
       _studyModes = results[0] as List<StudyMode>;

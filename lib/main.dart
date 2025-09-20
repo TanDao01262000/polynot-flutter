@@ -8,8 +8,10 @@ import 'services/partner_service.dart';
 import 'providers/vocabulary_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/flashcard_provider.dart';
+import 'providers/tts_provider.dart';
 import 'screens/vocabulary_list_screen.dart';
 import 'screens/flashcard_screens.dart';
+import 'screens/vocabulary_tts_demo_screen.dart';
 
 void main() async {
   // Load environment variables
@@ -38,6 +40,7 @@ class MyApp extends StatelessWidget{
         ChangeNotifierProvider(create: (_) => VocabularyProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => FlashcardProvider()),
+        ChangeNotifierProvider(create: (_) => TTSProvider()),
       ],
       child: MaterialApp(
         title: "Polynot",
@@ -51,6 +54,7 @@ class MyApp extends StatelessWidget{
           '/register': (context) => const UserRegistrationScreen(),
           '/vocabulary-list': (context) => const VocabularyListScreen(),
           '/flashcards': (context) => const FlashcardMainScreen(),
+          '/tts-demo': (context) => const VocabularyTTSDemoScreen(),
         },
         debugShowCheckedModeBanner: false,
       ),
