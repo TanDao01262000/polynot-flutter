@@ -17,6 +17,8 @@ dependencies:
   shared_preferences: ^2.2.2
   crypto: ^3.0.3
   audioplayers: ^6.0.0
+  audio_session: ^0.1.21
+  path_provider: ^2.1.2
 
 dev_dependencies:
   flutter_test:

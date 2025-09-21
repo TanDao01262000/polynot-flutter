@@ -1,5 +1,11 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:audio_session/audio_session.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import '../services/tts_service.dart';
 import '../models/vocabulary_item.dart';
 
@@ -7,6 +13,9 @@ class TTSProvider extends ChangeNotifier {
   // State management
   Map<String, TTSPronunciationResponse> _pronunciations = {};
   Map<String, bool> _isGenerating = {};
+  
+  // Audio cache directory
+  Directory? _cacheDir;
   Map<String, bool> _isPlaying = {};
   String? _currentPlayingAudio;
   String? _error;
@@ -18,8 +27,169 @@ class TTSProvider extends ChangeNotifier {
   TTSSubscription? _subscription;
   TTSQuota? _quota;
   
-  // Audio player
+  // Audio player with proper configuration
   final AudioPlayer _audioPlayer = AudioPlayer();
+  
+  // Initialize audio cache directory
+  Future<void> _initializeCacheDir() async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      _cacheDir = Directory('${appDir.path}/audio_cache');
+      
+      if (!await _cacheDir!.exists()) {
+        await _cacheDir!.create(recursive: true);
+        print('🔊 Created audio cache directory: ${_cacheDir!.path}');
+      } else {
+        print('🔊 Using existing audio cache directory: ${_cacheDir!.path}');
+      }
+    } catch (e) {
+      print('🔊 Failed to initialize cache directory: $e');
+      // Fallback to temporary directory
+      _cacheDir = await getTemporaryDirectory();
+    }
+  }
+
+  // Generate a cache filename based on URL hash
+  String _getCacheFileName(String url) {
+    // Create a simple hash from the URL using built-in hashCode
+    final urlHash = url.hashCode.abs();
+    
+    // Extract a meaningful part from the URL for easier debugging
+    final uri = Uri.parse(url);
+    final pathParts = uri.pathSegments;
+    final lastPart = pathParts.isNotEmpty ? pathParts.last : 'audio';
+    
+    // Clean the filename (remove special characters)
+    final cleanPart = lastPart.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    
+    return '${cleanPart}_${urlHash}.mp3';
+  }
+
+  // Check if audio file exists in cache
+  Future<bool> _isAudioCached(String url) async {
+    if (_cacheDir == null) await _initializeCacheDir();
+    
+    final fileName = _getCacheFileName(url);
+    final file = File('${_cacheDir!.path}/$fileName');
+    final exists = await file.exists();
+    
+    if (exists) {
+      print('🔊 Audio file found in cache: $fileName');
+    } else {
+      print('🔊 Audio file not in cache, will download: $fileName');
+    }
+    
+    return exists;
+  }
+
+  // Get cached audio file path
+  Future<String?> _getCachedAudioPath(String url) async {
+    if (_cacheDir == null) await _initializeCacheDir();
+    
+    final fileName = _getCacheFileName(url);
+    final file = File('${_cacheDir!.path}/$fileName');
+    
+    if (await file.exists()) {
+      print('🔊 Using cached audio file: ${file.path}');
+      return file.path;
+    }
+    
+    return null;
+  }
+
+  // Cache audio file
+  Future<String> _cacheAudioFile(String url, List<int> audioBytes) async {
+    if (_cacheDir == null) await _initializeCacheDir();
+    
+    final fileName = _getCacheFileName(url);
+    final file = File('${_cacheDir!.path}/$fileName');
+    
+    await file.writeAsBytes(audioBytes);
+    print('🔊 Audio file cached to: ${file.path}');
+    
+    return file.path;
+  }
+
+  // Get cache statistics
+  Future<Map<String, dynamic>> getCacheStats() async {
+    if (_cacheDir == null) await _initializeCacheDir();
+    
+    try {
+      final files = await _cacheDir!.list().toList();
+      int totalFiles = 0;
+      int totalSize = 0;
+      
+      for (final file in files) {
+        if (file is File && file.path.endsWith('.mp3')) {
+          totalFiles++;
+          totalSize += await file.length();
+        }
+      }
+      
+      return {
+        'totalFiles': totalFiles,
+        'totalSizeBytes': totalSize,
+        'totalSizeMB': (totalSize / (1024 * 1024)).toStringAsFixed(2),
+        'cachePath': _cacheDir!.path,
+      };
+    } catch (e) {
+      return {
+        'error': e.toString(),
+        'totalFiles': 0,
+        'totalSizeBytes': 0,
+        'totalSizeMB': '0.00',
+        'cachePath': _cacheDir?.path ?? 'Not initialized',
+      };
+    }
+  }
+
+  // Clear audio cache
+  Future<void> clearAudioCache() async {
+    if (_cacheDir == null) await _initializeCacheDir();
+    
+    try {
+      final files = await _cacheDir!.list().toList();
+      int deletedFiles = 0;
+      
+      for (final file in files) {
+        if (file is File && file.path.endsWith('.mp3')) {
+          await file.delete();
+          deletedFiles++;
+        }
+      }
+      
+      print('🔊 Cleared audio cache: $deletedFiles files deleted');
+    } catch (e) {
+      print('🔊 Failed to clear audio cache: $e');
+    }
+  }
+
+  // Initialize audio session for iOS compatibility (from working audio lab config)
+  Future<void> _initializeAudioSession() async {
+    try {
+      final session = await AudioSession.instance;
+      print('🔊 Audio session accessible');
+
+      // Try multiple configurations like in the working audio lab
+      try {
+        await session.configure(const AudioSessionConfiguration.music());
+        print('🔊 Music session configured');
+      } catch (e) {
+        print('🔊 Music session failed: $e');
+      }
+
+      try {
+        await session.configure(const AudioSessionConfiguration.speech());
+        print('🔊 Speech session configured');
+      } catch (e) {
+        print('🔊 Speech session failed: $e');
+      }
+
+      print('🔊 Audio session configuration completed');
+    } catch (e) {
+      print('🔊 Audio session configuration failed: $e');
+    }
+  }
 
   // Getters
   Map<String, TTSPronunciationResponse> get pronunciations => _pronunciations;
@@ -269,32 +439,95 @@ class TTSProvider extends ChangeNotifier {
     _currentPlayingAudio = pronunciationVersion.audioUrl;
     notifyListeners();
 
+    // Clean the audio URL (remove trailing ? and other issues)
+    String cleanUrl = pronunciationVersion.audioUrl;
+    print('🔊 Original audio URL: $cleanUrl');
+    print('🔊 URL length: ${cleanUrl.length}');
+    print('🔊 URL ends with ?: ${cleanUrl.endsWith('?')}');
+    
+    if (cleanUrl.endsWith('?')) {
+      cleanUrl = cleanUrl.substring(0, cleanUrl.length - 1);
+      print('🔊 Cleaned audio URL: $cleanUrl');
+    } else {
+      print('🔊 No cleaning needed, URL is: $cleanUrl');
+    }
+    
+    // Additional URL validation
+    try {
+      Uri.parse(cleanUrl);
+      print('🔊 URL is valid');
+    } catch (e) {
+      print('🔊 URL validation failed: $e');
+    }
+
     try {
       print('🔊 Playing audio from URL: ${pronunciationVersion.audioUrl}');
+      print('🔊 Audio duration: ${pronunciationVersion.durationSeconds} seconds');
       
-      // Play the audio using AudioPlayer
-      await _audioPlayer.play(UrlSource(pronunciationVersion.audioUrl));
+      // Initialize audio session for iOS compatibility
+      await _initializeAudioSession();
       
-      // Listen for when playback completes
+      // Debug audio player state
+      print('🔊 Audio player state before play: ${_audioPlayer.state}');
+      
+      // CACHED APPROACH: Check cache first, download if needed, then play
+      String localFilePath;
+      
+      // Check if audio is already cached
+      if (await _isAudioCached(cleanUrl)) {
+        // Use cached file
+        localFilePath = (await _getCachedAudioPath(cleanUrl))!;
+        print('🔊 Using cached audio file');
+      } else {
+        // Download and cache the audio file
+        print('🔊 Downloading and caching audio file...');
+        
+        final response = await http.get(Uri.parse(cleanUrl)).timeout(
+          const Duration(seconds: 30),
+          onTimeout: () {
+            print('🔊 Download timed out after 30 seconds');
+            throw TimeoutException('Download timed out', const Duration(seconds: 30));
+          },
+        );
+        
+        if (response.statusCode != 200) {
+          throw Exception('Failed to download audio: ${response.statusCode}');
+        }
+        
+        print('🔊 Audio file downloaded successfully (${response.bodyBytes.length} bytes)');
+        
+        // Cache the file
+        localFilePath = await _cacheAudioFile(cleanUrl, response.bodyBytes);
+      }
+      
+      // Now try to play the local file
+      print('🔊 Playing audio file: $localFilePath');
+      await _audioPlayer.play(DeviceFileSource(localFilePath)).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          print('🔊 Audio playback timed out after 15 seconds');
+          throw TimeoutException('Audio playback timed out', const Duration(seconds: 15));
+        },
+      );
+      
+      print('🔊 Audio playback started successfully');
+      
+      // Set up completion listener (no cleanup needed for cached files)
       _audioPlayer.onPlayerComplete.listen((event) {
+        print('🔊 Audio playback completed');
         _isPlaying[vocabEntryId] = false;
         _currentPlayingAudio = null;
         notifyListeners();
       });
       
-      // Listen for any errors
+      // Monitor player state changes
       _audioPlayer.onPlayerStateChanged.listen((state) {
-        if (state == PlayerState.stopped || state == PlayerState.completed) {
-          _isPlaying[vocabEntryId] = false;
-          _currentPlayingAudio = null;
-          notifyListeners();
-        }
+        print('🔊 Player state changed: $state');
       });
       
     } catch (e) {
       print('🔊 Audio playback error: $e');
       _error = 'Error playing audio: $e';
-    } finally {
       _isPlaying[vocabEntryId] = false;
       _currentPlayingAudio = null;
       notifyListeners();
@@ -305,7 +538,11 @@ class TTSProvider extends ChangeNotifier {
   Future<void> stopCurrentAudio() async {
     if (_currentPlayingAudio != null) {
       print('🔊 Stopping current audio');
-      await _audioPlayer.stop();
+      try {
+        await _audioPlayer.stop();
+      } catch (e) {
+        print('🔊 Error stopping audio: $e');
+      }
       _currentPlayingAudio = null;
       
       // Clear all playing states
@@ -466,5 +703,12 @@ class TTSProvider extends ChangeNotifier {
   bool canCreateVoiceClones() {
     return _subscription?.features.voiceCloning == true && 
            _quota?.voiceClonesRemaining != null && _quota!.voiceClonesRemaining > 0;
+  }
+
+  // Dispose resources
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
   }
 }
