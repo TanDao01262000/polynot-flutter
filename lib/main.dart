@@ -12,8 +12,12 @@ import 'providers/tts_provider.dart';
 import 'screens/vocabulary_list_screen.dart';
 import 'screens/flashcard_screens.dart';
 import 'screens/vocabulary_tts_demo_screen.dart';
+import 'widgets/auth_wrapper.dart';
 
 void main() async {
+  // Ensure Flutter bindings are initialized
+  WidgetsFlutterBinding.ensureInitialized();
+  
   // Load environment variables
   await dotenv.load(fileName: ".env");
   
@@ -48,7 +52,7 @@ class MyApp extends StatelessWidget{
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         ),
-        home: const HomeScreen(),
+        home: const AuthWrapper(),
         routes: {
           '/login': (context) => const UserLoginScreen(),
           '/register': (context) => const UserRegistrationScreen(),

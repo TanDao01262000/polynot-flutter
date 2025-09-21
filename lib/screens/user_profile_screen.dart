@@ -409,9 +409,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.of(context).pop();
-                userProvider.logout();
+                await userProvider.logout();
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
