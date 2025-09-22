@@ -509,6 +509,7 @@ class TTSProvider extends ChangeNotifier {
     required VocabularyItem vocabularyItem,
     List<String> versions = const ['normal', 'slow'],
     String language = 'en',
+    UserPlanProvider? userPlanProvider,
   }) async {
     print('🔊 TTSProvider.generatePronunciations called for: ${vocabularyItem.word}');
     print('🔊 TTSProvider current user ID: $_currentUserId');
@@ -520,6 +521,16 @@ class TTSProvider extends ChangeNotifier {
       _error = 'User not authenticated';
       notifyListeners();
       return false;
+    }
+
+    // Check premium access for custom voices
+    if (_selectedVoiceId != null && _selectedVoiceId != 'google_default') {
+      if (userPlanProvider != null && !userPlanProvider.canUseCustomVoices) {
+        print('🔊 TTSProvider: User attempted to use custom voice without premium access');
+        _error = 'Custom voices are Premium features. Upgrade to use custom voice clones!';
+        notifyListeners();
+        return false;
+      }
     }
 
     final vocabEntryId = vocabularyItem.id;
@@ -999,6 +1010,7 @@ class TTSProvider extends ChangeNotifier {
     required VocabularyItem vocabularyItem,
     List<String> versions = const ['normal', 'slow'],
     String language = 'en',
+    UserPlanProvider? userPlanProvider,
   }) async {
     print('🔊 TTSProvider: forceRegeneratePronunciations called for: ${vocabularyItem.word}');
     
@@ -1010,6 +1022,7 @@ class TTSProvider extends ChangeNotifier {
       vocabularyItem: vocabularyItem,
       versions: versions,
       language: language,
+      userPlanProvider: userPlanProvider,
     );
   }
 

@@ -437,8 +437,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return Consumer<TTSProvider>(
-          builder: (context, ttsProvider, child) {
+        return Consumer2<TTSProvider, UserPlanProvider>(
+          builder: (context, ttsProvider, userPlanProvider, child) {
             return AlertDialog(
               title: const Text('Voice Settings'),
               content: SizedBox(
@@ -463,99 +463,176 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           await ttsProvider.setSelectedVoiceId(value);
                         },
                       ),
-                      // Custom voice profiles
-                      if (ttsProvider.voiceProfiles.isNotEmpty) ...[
-                        const Divider(),
-                        const Text(
-                          'Custom Voices',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                      // Custom voice profiles (Premium only)
+                      const Divider(),
+                      Row(
+                        children: [
+                          const Text(
+                            'Custom Voices',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        ...ttsProvider.voiceProfiles.map((profile) {
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: RadioListTile<String?>(
-                              title: Text(profile.voiceName),
-                              subtitle: Text('${profile.provider} - ${profile.voiceId}'),
-                              value: profile.voiceId,
-                              groupValue: ttsProvider.selectedVoiceId,
-                              onChanged: (value) async {
-                                await ttsProvider.setSelectedVoiceId(value);
-                              },
-                              secondary: PopupMenuButton<String>(
-                                icon: const Icon(Icons.more_vert),
-                                onSelected: (value) async {
-                                  if (value == 'delete') {
-                                    final confirmed = await _showDeleteConfirmation(context, profile.voiceName);
-                                    if (confirmed && mounted) {
-                                      final success = await ttsProvider.deleteVoiceProfile(profile.id);
-                                      if (success) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Voice "${profile.voiceName}" deleted successfully'),
-                                            backgroundColor: Colors.green,
-                                          ),
-                                        );
-                                      } else {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Failed to delete voice: ${ttsProvider.error ?? "Unknown error"}'),
-                                            backgroundColor: Colors.red,
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  const PopupMenuItem(
-                                    value: 'delete',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.delete, color: Colors.red),
-                                        SizedBox(width: 8),
-                                        Text('Delete Voice'),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: userPlanProvider.canUseCustomVoices ? Colors.green : Colors.orange,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              userPlanProvider.canUseCustomVoices ? 'PREMIUM' : 'PREMIUM ONLY',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                          );
-                        }).toList(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      
+                      if (userPlanProvider.canUseCustomVoices) ...[
+                        // Show custom voices for premium users
+                        if (ttsProvider.voiceProfiles.isNotEmpty) ...[
+                          ...ttsProvider.voiceProfiles.map((profile) {
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              child: RadioListTile<String?>(
+                                title: Text(profile.voiceName),
+                                subtitle: Text('${profile.provider} - ${profile.voiceId}'),
+                                value: profile.voiceId,
+                                groupValue: ttsProvider.selectedVoiceId,
+                                onChanged: (value) async {
+                                  await ttsProvider.setSelectedVoiceId(value);
+                                },
+                                secondary: PopupMenuButton<String>(
+                                  icon: const Icon(Icons.more_vert),
+                                  onSelected: (value) async {
+                                    if (value == 'delete') {
+                                      final confirmed = await _showDeleteConfirmation(context, profile.voiceName);
+                                      if (confirmed && mounted) {
+                                        final success = await ttsProvider.deleteVoiceProfile(profile.id);
+                                        if (success) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Voice "${profile.voiceName}" deleted successfully'),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                        } else {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Failed to delete voice: ${ttsProvider.error ?? "Unknown error"}'),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    const PopupMenuItem(
+                                      value: 'delete',
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.delete, color: Colors.red),
+                                          SizedBox(width: 8),
+                                          Text('Delete Voice'),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ] else ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'No custom voices available',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
                       ] else ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'No custom voices available',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontStyle: FontStyle.italic,
+                        // Show premium upgrade message for non-premium users
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            border: Border.all(color: Colors.orange.shade200),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.lock,
+                                color: Colors.orange.shade600,
+                                size: 32,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Custom Voices are Premium Features',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade800,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Upgrade to Premium to create and use custom voice clones',
+                                style: TextStyle(
+                                  color: Colors.orange.shade700,
+                                  fontSize: 12,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
                         ),
                       ],
                       
-                      // Create new voice button
+                      // Create new voice button (Premium only)
                       const SizedBox(height: 16),
                       const Divider(),
                       const SizedBox(height: 8),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: () {
+                          onPressed: userPlanProvider.canUseVoiceCloning ? () {
                             Navigator.of(context).pop(); // Close dialog
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (context) => const VoiceCloningScreen(),
                               ),
                             );
+                          } : () {
+                            // Show premium upgrade message
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('Voice cloning is a Premium feature. Upgrade to create custom voices!'),
+                                backgroundColor: Colors.orange,
+                                action: SnackBarAction(
+                                  label: 'Learn More',
+                                  textColor: Colors.white,
+                                  onPressed: () {
+                                    // Could navigate to upgrade page here
+                                  },
+                                ),
+                              ),
+                            );
                           },
-                          icon: const Icon(Icons.add),
-                          label: const Text('Create New Voice Clone'),
+                          icon: Icon(userPlanProvider.canUseVoiceCloning ? Icons.add : Icons.lock),
+                          label: Text(userPlanProvider.canUseVoiceCloning 
+                            ? 'Create New Voice Clone' 
+                            : 'Create New Voice Clone (Premium Only)'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.purple,
+                            backgroundColor: userPlanProvider.canUseVoiceCloning ? Colors.purple : Colors.grey,
                             foregroundColor: Colors.white,
                           ),
                         ),

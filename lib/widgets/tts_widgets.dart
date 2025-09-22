@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/tts_provider.dart';
+import '../providers/user_plan_provider.dart';
 import '../models/vocabulary_item.dart';
 
 // TTS Button Widget for vocabulary items
@@ -142,6 +143,33 @@ class _TTSButtonState extends State<TTSButton> {
     print('🔊 TTS Provider selected voice ID: ${ttsProvider.selectedVoiceId}');
     print('🔊 TTS Provider voice profiles count: ${ttsProvider.voiceProfiles.length}');
     
+    // Check if user can use custom voices (if a custom voice is selected)
+    final userPlanProvider = Provider.of<UserPlanProvider>(context, listen: false);
+    final selectedVoiceId = ttsProvider.selectedVoiceId;
+    
+    // If user has selected a custom voice (not null and not google_default), check premium access
+    if (selectedVoiceId != null && selectedVoiceId != 'google_default') {
+      if (!userPlanProvider.canUseCustomVoices) {
+        print('🔊 User attempted to use custom voice without premium access');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Custom voices are Premium features. Upgrade to use custom voice clones!'),
+              backgroundColor: Colors.orange,
+              action: SnackBarAction(
+                label: 'Learn More',
+                textColor: Colors.white,
+                onPressed: () {
+                  // Could navigate to upgrade page here
+                },
+              ),
+            ),
+          );
+        }
+        return; // Exit without generating TTS
+      }
+    }
+    
     try {
       final pronunciations = ttsProvider.getPronunciations(widget.vocabularyItem.id);
       bool hasAudio = pronunciations?.versions.containsKey(widget.version) ?? false;
@@ -186,6 +214,7 @@ class _TTSButtonState extends State<TTSButton> {
         // Generate pronunciations first, then play
         final success = await ttsProvider.generatePronunciations(
           vocabularyItem: widget.vocabularyItem,
+          userPlanProvider: userPlanProvider,
           versions: [widget.version],
         );
 

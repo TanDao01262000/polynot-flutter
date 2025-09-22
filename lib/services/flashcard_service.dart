@@ -42,6 +42,8 @@ class FlashcardService {
     };
     if (sessionToken != null) {
       _log('Using session token for authorization');
+      _log('Token length: ${sessionToken.length}');
+      _log('Token preview: ${sessionToken.substring(0, sessionToken.length > 50 ? 50 : sessionToken.length)}...');
       headers['Authorization'] = 'Bearer $sessionToken';
     }
     return headers;
