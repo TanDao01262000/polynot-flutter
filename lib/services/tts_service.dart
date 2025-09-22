@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart';
 
@@ -478,7 +479,14 @@ class TTSService {
     _log('🔊 TTSService: Description: $description');
     _log('🔊 TTSService: User token present: ${userToken != null && userToken.isNotEmpty}');
     
-    final uri = Uri.parse('$baseUrl/voice-cloning/create-voice-clone');
+    // Build URI with query parameters
+    final uri = Uri.parse('$baseUrl/voice-cloning/create-voice-clone').replace(
+      queryParameters: {
+        'user_id': userId,
+        'voice_name': voiceName,
+        if (description != null && description.isNotEmpty) 'description': description,
+      },
+    );
     _log('🔊 TTSService: POST $uri');
     
     try {
@@ -493,14 +501,7 @@ class TTSService {
         _log('🔊 TTSService: Authorization header added');
       }
       
-      _log('🔊 TTSService: Adding form fields...');
-      // Add form fields
-      request.fields['user_id'] = userId;
-      request.fields['voice_name'] = voiceName;
-      if (description != null && description.isNotEmpty) {
-        request.fields['description'] = description;
-      }
-      _log('🔊 TTSService: Form fields added: ${request.fields}');
+      _log('🔊 TTSService: Query parameters added: ${uri.queryParameters}');
       
       _log('🔊 TTSService: Processing audio files...');
       // Add audio files
@@ -517,11 +518,39 @@ class TTSService {
             _log('🔊 TTSService: File $i size: $fileLength bytes');
             
             final fileStream = http.ByteStream(file.openRead());
+            
+            // Determine MIME type based on file extension
+            String contentType = 'application/octet-stream';
+            final extension = file.path.toLowerCase().split('.').last;
+            switch (extension) {
+              case 'm4a':
+                contentType = 'audio/mp4';
+                break;
+              case 'mp3':
+                contentType = 'audio/mpeg';
+                break;
+              case 'wav':
+                contentType = 'audio/wav';
+                break;
+              case 'aac':
+                contentType = 'audio/aac';
+                break;
+              case 'ogg':
+                contentType = 'audio/ogg';
+                break;
+              case 'webm':
+                contentType = 'audio/webm';
+                break;
+              default:
+                contentType = 'audio/mp4'; // Default to audio/mp4 for unknown audio files
+            }
+            
             final multipartFile = http.MultipartFile(
               'audio_files',
               fileStream,
               fileLength,
               filename: file.path.split('/').last,
+              contentType: MediaType.parse(contentType),
             );
             request.files.add(multipartFile);
             _log('🔊 TTSService: Added audio file: ${file.path}');
