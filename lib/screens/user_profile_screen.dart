@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/vocabulary_provider.dart';
+import '../providers/tts_provider.dart';
 import '../models/user.dart';
 import '../services/user_service.dart';
+import 'voice_cloning_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -16,12 +18,25 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Load user profile when screen initializes
+    // Load user profile and voice profiles when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final ttsProvider = Provider.of<TTSProvider>(context, listen: false);
+      
       if (userProvider.currentUser != null) {
         userProvider.getUserProfile(userProvider.currentUser!.userName);
       }
+      
+        // Load voice profiles if user is authenticated
+        if (userProvider.isLoggedIn) {
+          // Set the current user ID for TTS provider if not already set
+          if (ttsProvider.currentUserId == null && userProvider.sessionToken != null) {
+            ttsProvider.setCurrentUserId(userProvider.sessionToken!);
+          }
+          // Load voice profiles and selected voice
+          ttsProvider.loadVoiceProfiles();
+          ttsProvider.loadSelectedVoiceId();
+        }
     });
   }
 
@@ -251,6 +266,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         ),
                         const Divider(),
                         ListTile(
+                          leading: const Icon(Icons.record_voice_over, color: Colors.purple),
+                          title: const Text('Voice Settings'),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                          onTap: () {
+                            _showVoiceSelectionDialog(context);
+                          },
+                        ),
+                        const Divider(),
+                        ListTile(
                           leading: const Icon(Icons.logout, color: Colors.red),
                           title: const Text('Logout'),
                           onTap: () {
@@ -394,6 +418,173 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         );
       },
     );
+  }
+
+  void _showVoiceSelectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Consumer<TTSProvider>(
+          builder: (context, ttsProvider, child) {
+            return AlertDialog(
+              title: const Text('Voice Settings'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Select your preferred voice for pronunciation:'),
+                    const SizedBox(height: 16),
+                    if (ttsProvider.isLoading) ...[
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      const Text('Loading voice profiles...'),
+                    ] else ...[
+                      // Default voice option
+                      RadioListTile<String?>(
+                        title: const Text('Default Voice'),
+                        subtitle: const Text('System default voice'),
+                        value: null,
+                        groupValue: ttsProvider.selectedVoiceId,
+                        onChanged: (value) async {
+                          await ttsProvider.setSelectedVoiceId(value);
+                        },
+                      ),
+                      // Custom voice profiles
+                      if (ttsProvider.voiceProfiles.isNotEmpty) ...[
+                        const Divider(),
+                        const Text(
+                          'Custom Voices',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ...ttsProvider.voiceProfiles.map((profile) {
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: RadioListTile<String?>(
+                              title: Text(profile.voiceName),
+                              subtitle: Text('${profile.provider} - ${profile.voiceId}'),
+                              value: profile.voiceId,
+                              groupValue: ttsProvider.selectedVoiceId,
+                              onChanged: (value) async {
+                                await ttsProvider.setSelectedVoiceId(value);
+                              },
+                              secondary: PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_vert),
+                                onSelected: (value) async {
+                                  if (value == 'delete') {
+                                    final confirmed = await _showDeleteConfirmation(context, profile.voiceName);
+                                    if (confirmed && mounted) {
+                                      final success = await ttsProvider.deleteVoiceProfile(profile.id);
+                                      if (success) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Voice "${profile.voiceName}" deleted successfully'),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                      } else {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Failed to delete voice: ${ttsProvider.error ?? "Unknown error"}'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.delete, color: Colors.red),
+                                        SizedBox(width: 8),
+                                        Text('Delete Voice'),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ] else ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'No custom voices available',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                      
+                      // Create new voice button
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).pop(); // Close dialog
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const VoiceCloningScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.add),
+                          label: const Text('Create New Voice Clone'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.purple,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<bool> _showDeleteConfirmation(BuildContext context, String voiceName) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Voice'),
+          content: Text('Are you sure you want to delete the voice "$voiceName"? This action cannot be undone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    ) ?? false;
   }
 
   void _showLogoutDialog(BuildContext context, UserProvider userProvider) {

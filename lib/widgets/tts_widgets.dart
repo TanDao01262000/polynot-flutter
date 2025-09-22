@@ -42,6 +42,10 @@ class _TTSButtonState extends State<TTSButton> {
           onTap: isGenerating || isPlaying ? null : () => _handleTTSAction(ttsProvider),
           child: Container(
             padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(
+              minWidth: 40,
+              minHeight: 40,
+            ),
             decoration: BoxDecoration(
               color: _getButtonColor(ttsProvider, hasAudio, isPlaying, isGenerating),
               borderRadius: BorderRadius.circular(20),
@@ -135,14 +139,40 @@ class _TTSButtonState extends State<TTSButton> {
   Future<void> _handleTTSAction(TTSProvider ttsProvider) async {
     print('🔊 TTS Button tapped for word: ${widget.vocabularyItem.word}');
     print('🔊 TTS Provider current user ID: ${ttsProvider.currentUserId}');
+    print('🔊 TTS Provider selected voice ID: ${ttsProvider.selectedVoiceId}');
+    print('🔊 TTS Provider voice profiles count: ${ttsProvider.voiceProfiles.length}');
     
     try {
       final pronunciations = ttsProvider.getPronunciations(widget.vocabularyItem.id);
-      final hasAudio = pronunciations?.versions.containsKey(widget.version) ?? false;
+      bool hasAudio = pronunciations?.versions.containsKey(widget.version) ?? false;
       
       print('🔊 Has existing audio: $hasAudio');
       print('🔊 Pronunciations: $pronunciations');
 
+        if (hasAudio) {
+          // Check if the existing audio was generated with the current voice
+          final currentVoiceId = ttsProvider.selectedVoiceId;
+          final pronunciation = pronunciations?.versions[widget.version];
+          final audioVoiceId = pronunciation?.voiceId;
+
+          print('🔊 Current voice ID: $currentVoiceId');
+          print('🔊 Audio voice ID: $audioVoiceId');
+
+          if (currentVoiceId != null && audioVoiceId != null && currentVoiceId != audioVoiceId) {
+            print('🔊 Voice changed, clearing existing audio and regenerating...');
+            ttsProvider.clearPronunciationsForItem(widget.vocabularyItem.id);
+            hasAudio = false; // Force regeneration
+          }
+          
+          // Also check if the audio URL contains google_tts but we want ElevenLabs
+          final audioUrl = pronunciation?.audioUrl ?? '';
+          if (audioUrl.contains('google_tts') && currentVoiceId != null && currentVoiceId != 'google_default') {
+            print('🔊 Found Google TTS audio but want custom voice, clearing and regenerating...');
+            ttsProvider.clearPronunciationsForItem(widget.vocabularyItem.id);
+            hasAudio = false; // Force regeneration
+          }
+        }
+      
       if (hasAudio) {
         print('🔊 Playing existing audio...');
         // Play existing audio

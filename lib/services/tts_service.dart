@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart';
@@ -136,25 +137,37 @@ class TTSService {
     required String text,
     String language = 'en',
     List<String> versions = const ['normal', 'slow'],
+    String? voiceId,
     String? userToken,
   }) async {
     print('🔊 TTSService.generatePronunciations called');
     print('🔊 VocabEntryId: $vocabEntryId');
     print('🔊 Text: $text');
     print('🔊 UserToken: ${userToken != null ? userToken.substring(0, 20) + "..." : "NULL"}');
+    print('🔊 VoiceId: $voiceId');
+    print('🔊 VoiceId is null: ${voiceId == null}');
+    print('🔊 VoiceId is empty: ${voiceId?.isEmpty ?? true}');
     
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/tts/pronunciation/generate');
     _log('POST $uri');
     
-    final requestBody = {
+    final requestBody = <String, dynamic>{
       'vocab_entry_id': vocabEntryId,
       'text': text,
       'language': language,
       'versions': versions,
     };
     
+    if (voiceId != null) {
+      requestBody['voice_id'] = voiceId;
+      print('🔊 TTSService: Added voice_id to request body: $voiceId');
+    } else {
+      print('🔊 TTSService: No voice_id added to request body (voiceId is null)');
+    }
+    
     _log('Body: ${jsonEncode(requestBody)}');
+    print('🔊 TTSService: Final request body: ${jsonEncode(requestBody)}');
     
     try {
       final response = await http.post(
@@ -167,7 +180,25 @@ class TTSService {
       _log('Response: ${_trimBody(response.body)}');
 
       if (response.statusCode == 200) {
-        return TTSPronunciationGenerateResponse.fromJson(jsonDecode(response.body));
+        final responseData = jsonDecode(response.body);
+        print('🔊 TTSService: Response data: $responseData');
+        
+        // Check if the response contains the expected voice_id
+        if (responseData['pronunciations'] != null) {
+          final pronunciations = responseData['pronunciations'];
+          if (pronunciations['versions'] != null) {
+            final versions = pronunciations['versions'];
+            for (final versionKey in versions.keys) {
+              final version = versions[versionKey];
+              print('🔊 TTSService: Version $versionKey voice_id: ${version['voice_id']}');
+              if (voiceId != null && version['voice_id'] != voiceId) {
+                print('🔊 TTSService: WARNING - Expected voice_id: $voiceId, but got: ${version['voice_id']}');
+              }
+            }
+          }
+        }
+        
+        return TTSPronunciationGenerateResponse.fromJson(responseData);
       } else {
         throw Exception('Failed to generate pronunciations: ${response.statusCode} ${response.body}');
       }
@@ -212,6 +243,7 @@ class TTSService {
   static Future<TTSPronunciationEnsureResponse> ensurePronunciations({
     required String vocabEntryId,
     List<String> versions = const ['normal', 'slow'],
+    String? voiceId,
     String? userToken,
   }) async {
     _log('Base URL: $baseUrl');
@@ -221,6 +253,10 @@ class TTSService {
     final queryParams = <String, String>{
       'versions': versions.join(','),
     };
+    
+    if (voiceId != null) {
+      queryParams['voice_id'] = voiceId;
+    }
     
     final uriWithParams = uri.replace(queryParameters: queryParams);
     _log('Final URI: $uriWithParams');
@@ -249,16 +285,21 @@ class TTSService {
   static Future<TTSBatchPronunciationResponse> batchGeneratePronunciations({
     required List<String> vocabEntryIds,
     List<String> versions = const ['normal', 'slow'],
+    String? voiceId,
     String? userToken,
   }) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/tts/pronunciation/batch');
     _log('POST $uri');
     
-    final requestBody = {
+    final requestBody = <String, dynamic>{
       'vocab_entry_ids': vocabEntryIds,
       'versions': versions,
     };
+    
+    if (voiceId != null) {
+      requestBody['voice_id'] = voiceId;
+    }
     
     _log('Body: ${jsonEncode(requestBody)}');
     
@@ -417,6 +458,104 @@ class TTSService {
       }
     } catch (e) {
       _log('Error: $e');
+      rethrow;
+    }
+  }
+
+  // 12. Create Voice Clone
+  static Future<TTSVoiceCloneResponse> createVoiceClone({
+    required String userId,
+    required String voiceName,
+    required List<File> audioFiles,
+    String? description,
+    String? userToken,
+  }) async {
+    _log('🔊 TTSService: createVoiceClone called');
+    _log('🔊 TTSService: Base URL: $baseUrl');
+    _log('🔊 TTSService: User ID: $userId');
+    _log('🔊 TTSService: Voice name: $voiceName');
+    _log('🔊 TTSService: Audio files count: ${audioFiles.length}');
+    _log('🔊 TTSService: Description: $description');
+    _log('🔊 TTSService: User token present: ${userToken != null && userToken.isNotEmpty}');
+    
+    final uri = Uri.parse('$baseUrl/voice-cloning/create-voice-clone');
+    _log('🔊 TTSService: POST $uri');
+    
+    try {
+      _log('🔊 TTSService: Creating multipart request...');
+      // Create multipart request
+      final request = http.MultipartRequest('POST', uri);
+      
+      _log('🔊 TTSService: Adding headers...');
+      // Add headers
+      if (userToken != null && userToken.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $userToken';
+        _log('🔊 TTSService: Authorization header added');
+      }
+      
+      _log('🔊 TTSService: Adding form fields...');
+      // Add form fields
+      request.fields['user_id'] = userId;
+      request.fields['voice_name'] = voiceName;
+      if (description != null && description.isNotEmpty) {
+        request.fields['description'] = description;
+      }
+      _log('🔊 TTSService: Form fields added: ${request.fields}');
+      
+      _log('🔊 TTSService: Processing audio files...');
+      // Add audio files
+      for (int i = 0; i < audioFiles.length; i++) {
+        final file = audioFiles[i];
+        _log('🔊 TTSService: Processing file $i: ${file.path}');
+        
+        try {
+          final exists = await file.exists();
+          _log('🔊 TTSService: File $i exists: $exists');
+          
+          if (exists) {
+            final fileLength = await file.length();
+            _log('🔊 TTSService: File $i size: $fileLength bytes');
+            
+            final fileStream = http.ByteStream(file.openRead());
+            final multipartFile = http.MultipartFile(
+              'audio_files',
+              fileStream,
+              fileLength,
+              filename: file.path.split('/').last,
+            );
+            request.files.add(multipartFile);
+            _log('🔊 TTSService: Added audio file: ${file.path}');
+          } else {
+            _log('🔊 TTSService: File $i does not exist: ${file.path}');
+            throw Exception('Audio file does not exist: ${file.path}');
+          }
+        } catch (fileError) {
+          _log('🔊 TTSService: Error processing file $i: $fileError');
+          rethrow;
+        }
+      }
+      
+      _log('🔊 TTSService: Sending request with ${request.files.length} audio files');
+      
+      // Send request
+      final streamedResponse = await request.send();
+      _log('🔊 TTSService: Request sent, getting response...');
+      
+      final response = await http.Response.fromStream(streamedResponse);
+      
+      _log('🔊 TTSService: Status: ${response.statusCode}');
+      _log('🔊 TTSService: Response: ${_trimBody(response.body)}');
+      
+      if (response.statusCode == 200) {
+        _log('🔊 TTSService: Success response received');
+        return TTSVoiceCloneResponse.fromJson(jsonDecode(response.body));
+      } else {
+        _log('🔊 TTSService: Error response: ${response.statusCode} ${response.body}');
+        throw Exception('Failed to create voice clone: ${response.statusCode} ${response.body}');
+      }
+    } catch (e, stackTrace) {
+      _log('🔊 TTSService: Error in createVoiceClone: $e');
+      _log('🔊 TTSService: Stack trace: $stackTrace');
       rethrow;
     }
   }
@@ -736,6 +875,32 @@ class TTSQuota {
       voiceClonesLimit: json['voice_clones_limit'] ?? 0,
       voiceClonesUsed: json['voice_clones_used'] ?? 0,
       voiceClonesRemaining: json['voice_clones_remaining'] ?? 0,
+    );
+  }
+}
+
+class TTSVoiceCloneResponse {
+  final bool success;
+  final String voiceId;
+  final String voiceName;
+  final String status;
+  final String message;
+
+  TTSVoiceCloneResponse({
+    required this.success,
+    required this.voiceId,
+    required this.voiceName,
+    required this.status,
+    required this.message,
+  });
+
+  factory TTSVoiceCloneResponse.fromJson(Map<String, dynamic> json) {
+    return TTSVoiceCloneResponse(
+      success: json['success'] ?? false,
+      voiceId: json['voice_id'] ?? '',
+      voiceName: json['voice_name'] ?? '',
+      status: json['status'] ?? '',
+      message: json['message'] ?? '',
     );
   }
 }

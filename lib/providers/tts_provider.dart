@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/tts_service.dart';
 import '../models/vocabulary_item.dart';
 
@@ -27,8 +27,22 @@ class TTSProvider extends ChangeNotifier {
   TTSSubscription? _subscription;
   TTSQuota? _quota;
   
+  // Voice profile selection
+  String? _selectedVoiceId;
+  static const String _selectedVoiceKey = 'tts_selected_voice_id';
+  
   // Audio player with proper configuration
   final AudioPlayer _audioPlayer = AudioPlayer();
+
+  // Constructor to initialize voice selection
+  TTSProvider() {
+    _initializeVoiceSelection();
+  }
+
+  // Initialize voice selection from storage
+  Future<void> _initializeVoiceSelection() async {
+    await loadSelectedVoiceId();
+  }
   
   // Initialize audio cache directory
   Future<void> _initializeCacheDir() async {
@@ -49,8 +63,8 @@ class TTSProvider extends ChangeNotifier {
     }
   }
 
-  // Generate a cache filename based on URL hash
-  String _getCacheFileName(String url) {
+  // Generate a cache filename based on URL hash and voice_id
+  String _getCacheFileName(String url, {String? voiceId}) {
     // Create a simple hash from the URL using built-in hashCode
     final urlHash = url.hashCode.abs();
     
@@ -62,14 +76,20 @@ class TTSProvider extends ChangeNotifier {
     // Clean the filename (remove special characters)
     final cleanPart = lastPart.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
     
+    // Include voice_id in filename to ensure different voices get different cache files
+    if (voiceId != null && voiceId.isNotEmpty) {
+      final cleanVoiceId = voiceId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+      return '${cleanPart}_${cleanVoiceId}_${urlHash}.mp3';
+    }
+    
     return '${cleanPart}_${urlHash}.mp3';
   }
 
   // Check if audio file exists in cache
-  Future<bool> _isAudioCached(String url) async {
+  Future<bool> _isAudioCached(String url, {String? voiceId}) async {
     if (_cacheDir == null) await _initializeCacheDir();
     
-    final fileName = _getCacheFileName(url);
+    final fileName = _getCacheFileName(url, voiceId: voiceId);
     final file = File('${_cacheDir!.path}/$fileName');
     final exists = await file.exists();
     
@@ -83,10 +103,10 @@ class TTSProvider extends ChangeNotifier {
   }
 
   // Get cached audio file path
-  Future<String?> _getCachedAudioPath(String url) async {
+  Future<String?> _getCachedAudioPath(String url, {String? voiceId}) async {
     if (_cacheDir == null) await _initializeCacheDir();
     
-    final fileName = _getCacheFileName(url);
+    final fileName = _getCacheFileName(url, voiceId: voiceId);
     final file = File('${_cacheDir!.path}/$fileName');
     
     if (await file.exists()) {
@@ -98,10 +118,10 @@ class TTSProvider extends ChangeNotifier {
   }
 
   // Cache audio file
-  Future<String> _cacheAudioFile(String url, List<int> audioBytes) async {
+  Future<String> _cacheAudioFile(String url, List<int> audioBytes, {String? voiceId}) async {
     if (_cacheDir == null) await _initializeCacheDir();
     
-    final fileName = _getCacheFileName(url);
+    final fileName = _getCacheFileName(url, voiceId: voiceId);
     final file = File('${_cacheDir!.path}/$fileName');
     
     await file.writeAsBytes(audioBytes);
@@ -164,6 +184,76 @@ class TTSProvider extends ChangeNotifier {
     }
   }
 
+  // Clear ALL cache files (for debugging/testing)
+  Future<void> clearAllCacheFiles() async {
+    if (_cacheDir == null) await _initializeCacheDir();
+    
+    try {
+      final files = await _cacheDir!.list().toList();
+      int deletedFiles = 0;
+      
+      print('🔊 Starting cache cleanup...');
+      print('🔊 Cache directory: ${_cacheDir!.path}');
+      print('🔊 Found ${files.length} files in cache directory');
+      
+      for (final file in files) {
+        if (file is File && file.path.endsWith('.mp3')) {
+          await file.delete();
+          deletedFiles++;
+          print('🔊 Deleted cache file: ${file.path.split('/').last}');
+        }
+      }
+      
+      print('🔊 Cleared ALL $deletedFiles cache files');
+      
+      // Also clear the in-memory pronunciations to force regeneration
+      _pronunciations.clear();
+      _isGenerating.clear();
+      _isPlaying.clear();
+      print('🔊 Cleared in-memory pronunciations');
+      
+    } catch (e) {
+      print('🔊 Failed to clear all cache files: $e');
+    }
+  }
+
+  // Clear cache files that don't match the current voice
+  Future<void> clearIncompatibleCacheFiles() async {
+    if (_cacheDir == null) await _initializeCacheDir();
+    if (_selectedVoiceId == null) return; // No voice selected, keep all files
+    
+    try {
+      final files = await _cacheDir!.list().toList();
+      int deletedFiles = 0;
+      
+      for (final file in files) {
+        if (file is File && file.path.endsWith('.mp3')) {
+          final fileName = file.path.split('/').last;
+          
+          // Check if this file was generated with a different voice
+          // Files with voice_id in filename should match current voice
+          if (fileName.contains('_') && fileName.contains('_mp3_')) {
+            final parts = fileName.split('_mp3_');
+            if (parts.length > 1) {
+              final voicePart = parts[1].split('_')[0];
+              if (voicePart != _selectedVoiceId) {
+                await file.delete();
+                deletedFiles++;
+                print('🔊 Deleted incompatible cache file: $fileName (voice: $voicePart, current: $_selectedVoiceId)');
+              }
+            }
+          }
+        }
+      }
+      
+      if (deletedFiles > 0) {
+        print('🔊 Cleared $deletedFiles incompatible cache files');
+      }
+    } catch (e) {
+      print('🔊 Failed to clear incompatible cache files: $e');
+    }
+  }
+
   // Initialize audio session for iOS compatibility (from working audio lab config)
   Future<void> _initializeAudioSession() async {
     try {
@@ -202,6 +292,7 @@ class TTSProvider extends ChangeNotifier {
   List<TTSVoiceProfile> get voiceProfiles => _voiceProfiles;
   TTSSubscription? get subscription => _subscription;
   TTSQuota? get quota => _quota;
+  String? get selectedVoiceId => _selectedVoiceId;
 
   // Check if pronunciations exist for a vocabulary item
   bool hasPronunciations(String vocabEntryId) {
@@ -227,6 +318,8 @@ class TTSProvider extends ChangeNotifier {
   void setCurrentUserId(String userId) {
     print('🔊 TTSProvider: Setting current user ID: ${userId.substring(0, 20)}...');
     _currentUserId = userId;
+    // Load voice selection when user ID is set
+    loadSelectedVoiceId();
     notifyListeners();
   }
 
@@ -234,6 +327,156 @@ class TTSProvider extends ChangeNotifier {
   void clearCurrentUserId() {
     _currentUserId = null;
     notifyListeners();
+  }
+
+  // ===== VOICE PROFILE SELECTION METHODS =====
+  
+  // Set selected voice profile
+  Future<void> setSelectedVoiceId(String? voiceId) async {
+    print('🔊 TTSProvider: setSelectedVoiceId called with: $voiceId');
+    print('🔊 TTSProvider: Previous voice ID: $_selectedVoiceId');
+    
+    // If voice is changing, clear existing pronunciations to force regeneration
+    if (_selectedVoiceId != voiceId) {
+      print('🔊 TTSProvider: Voice changed, clearing existing pronunciations');
+      _pronunciations.clear();
+      _isGenerating.clear();
+      _isPlaying.clear();
+      // Clear audio cache to ensure new voice is used
+      await clearAudioCache();
+    }
+    
+    _selectedVoiceId = voiceId;
+    
+    // Save to persistent storage
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (voiceId != null) {
+        await prefs.setString(_selectedVoiceKey, voiceId);
+        print('🔊 TTSProvider: Selected voice saved to SharedPreferences: $voiceId');
+      } else {
+        await prefs.remove(_selectedVoiceKey);
+        print('🔊 TTSProvider: Selected voice cleared from SharedPreferences');
+      }
+    } catch (e) {
+      print('🔊 TTSProvider: Failed to save selected voice: $e');
+    }
+    
+    print('🔊 TTSProvider: _selectedVoiceId is now: $_selectedVoiceId');
+    notifyListeners();
+  }
+
+  // Load selected voice profile from storage
+  Future<void> loadSelectedVoiceId() async {
+    print('🔊 TTSProvider: loadSelectedVoiceId called');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedVoiceId = prefs.getString(_selectedVoiceKey);
+      print('🔊 TTSProvider: Retrieved from SharedPreferences: $savedVoiceId');
+      if (savedVoiceId != null) {
+        _selectedVoiceId = savedVoiceId;
+        print('🔊 TTSProvider: Loaded selected voice: $savedVoiceId');
+      } else {
+        print('🔊 TTSProvider: No saved voice preference found');
+      }
+    } catch (e) {
+      print('🔊 TTSProvider: Failed to load selected voice: $e');
+    }
+    print('🔊 TTSProvider: _selectedVoiceId after loading: $_selectedVoiceId');
+  }
+
+  // Get selected voice profile
+  TTSVoiceProfile? getSelectedVoiceProfile() {
+    if (_selectedVoiceId == null) return null;
+    try {
+      return _voiceProfiles.firstWhere((profile) => profile.voiceId == _selectedVoiceId);
+    } catch (e) {
+      print('🔊 TTSProvider: Selected voice profile not found: $_selectedVoiceId');
+      return null;
+    }
+  }
+
+  // Check if selected voice is available
+  bool isSelectedVoiceAvailable() {
+    if (_selectedVoiceId == null) return true; // Default voice is always available
+    return _voiceProfiles.any((profile) => profile.voiceId == _selectedVoiceId);
+  }
+
+  // ===== VOICE CLONING METHODS =====
+  
+  // Create voice clone from audio files
+  Future<TTSVoiceCloneResponse?> createVoiceClone({
+    required String voiceName,
+    required List<File> audioFiles,
+    String? description,
+  }) async {
+    print('🔊 TTSProvider: createVoiceClone called');
+    print('🔊 TTSProvider: Voice name: $voiceName');
+    print('🔊 TTSProvider: Audio files count: ${audioFiles.length}');
+    print('🔊 TTSProvider: Description: $description');
+    print('🔊 TTSProvider: Current user ID: $_currentUserId');
+    
+    if (_currentUserId == null) {
+      print('🔊 TTSProvider: User not authenticated');
+      _error = 'User not authenticated';
+      notifyListeners();
+      return null;
+    }
+
+    print('🔊 TTSProvider: Setting loading state to true');
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      print('🔊 TTSProvider: Calling TTSService.createVoiceClone...');
+      
+      // Log file details
+      for (int i = 0; i < audioFiles.length; i++) {
+        final file = audioFiles[i];
+        print('🔊 TTSProvider: File $i: ${file.path}');
+        try {
+          final exists = await file.exists();
+          final size = exists ? await file.length() : 0;
+          print('🔊 TTSProvider: File $i exists: $exists, size: $size bytes');
+        } catch (fileError) {
+          print('🔊 TTSProvider: Error checking file $i: $fileError');
+        }
+      }
+      
+      final response = await TTSService.createVoiceClone(
+        userId: _currentUserId!,
+        voiceName: voiceName,
+        audioFiles: audioFiles,
+        description: description,
+        userToken: _currentUserId,
+      );
+
+      print('🔊 TTSProvider: TTSService response: $response');
+      print('🔊 TTSProvider: Response success: ${response.success}');
+      print('🔊 TTSProvider: Response message: ${response.message}');
+
+      if (response.success) {
+        print('🔊 TTSProvider: Voice clone created successfully, reloading voice profiles...');
+        // Reload voice profiles to include the new clone
+        await loadVoiceProfiles();
+        print('🔊 TTSProvider: Voice profiles reloaded');
+        return response;
+      } else {
+        print('🔊 TTSProvider: Voice clone creation failed: ${response.message}');
+        _error = 'Failed to create voice clone: ${response.message}';
+        return null;
+      }
+    } catch (e, stackTrace) {
+      print('🔊 TTSProvider: Exception in createVoiceClone: $e');
+      print('🔊 TTSProvider: Stack trace: $stackTrace');
+      _error = 'Error creating voice clone: $e';
+      return null;
+    } finally {
+      print('🔊 TTSProvider: Setting loading state to false');
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // Clear error
@@ -250,6 +493,8 @@ class TTSProvider extends ChangeNotifier {
   }) async {
     print('🔊 TTSProvider.generatePronunciations called for: ${vocabularyItem.word}');
     print('🔊 TTSProvider current user ID: $_currentUserId');
+    print('🔊 TTSProvider: Selected voice ID: $_selectedVoiceId');
+    print('🔊 TTSProvider: Available voice profiles: ${_voiceProfiles.map((p) => '${p.voiceName}(${p.voiceId})').join(', ')}');
     
     if (_currentUserId == null) {
       print('🔊 TTSProvider: User not authenticated');
@@ -264,17 +509,30 @@ class TTSProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      print('🔊 TTSProvider: Calling TTSService.generatePronunciations with voiceId: $_selectedVoiceId');
       final response = await TTSService.generatePronunciations(
         vocabEntryId: vocabEntryId,
         text: vocabularyItem.word,
         language: language,
         versions: versions,
+        voiceId: _selectedVoiceId,
         userToken: _currentUserId,
       );
 
       if (response.success) {
         // Fetch the generated pronunciations
         await _fetchPronunciations(vocabEntryId);
+        
+        // Verify that the generated pronunciations use the correct voice
+        final pronunciations = _pronunciations[vocabEntryId];
+        if (pronunciations != null && _selectedVoiceId != null) {
+          for (final version in pronunciations.versions.values) {
+            if (version.voiceId != _selectedVoiceId) {
+              print('🔊 TTSProvider: WARNING - Generated audio has voice_id: ${version.voiceId}, expected: $_selectedVoiceId');
+            }
+          }
+        }
+        
         return true;
       } else {
         _error = 'Failed to generate pronunciations: ${response.message}';
@@ -308,6 +566,7 @@ class TTSProvider extends ChangeNotifier {
       final response = await TTSService.ensurePronunciations(
         vocabEntryId: vocabEntryId,
         versions: versions,
+        voiceId: _selectedVoiceId,
         userToken: _currentUserId,
       );
 
@@ -384,6 +643,7 @@ class TTSProvider extends ChangeNotifier {
       final response = await TTSService.batchGeneratePronunciations(
         vocabEntryIds: vocabEntryIds,
         versions: versions,
+        voiceId: _selectedVoiceId,
         userToken: _currentUserId,
       );
 
@@ -474,9 +734,9 @@ class TTSProvider extends ChangeNotifier {
       String localFilePath;
       
       // Check if audio is already cached
-      if (await _isAudioCached(cleanUrl)) {
+      if (await _isAudioCached(cleanUrl, voiceId: pronunciationVersion.voiceId)) {
         // Use cached file
-        localFilePath = (await _getCachedAudioPath(cleanUrl))!;
+        localFilePath = (await _getCachedAudioPath(cleanUrl, voiceId: pronunciationVersion.voiceId))!;
         print('🔊 Using cached audio file');
       } else {
         // Download and cache the audio file
@@ -497,7 +757,7 @@ class TTSProvider extends ChangeNotifier {
         print('🔊 Audio file downloaded successfully (${response.bodyBytes.length} bytes)');
         
         // Cache the file
-        localFilePath = await _cacheAudioFile(cleanUrl, response.bodyBytes);
+        localFilePath = await _cacheAudioFile(cleanUrl, response.bodyBytes, voiceId: pronunciationVersion.voiceId);
       }
       
       // Now try to play the local file
@@ -582,7 +842,9 @@ class TTSProvider extends ChangeNotifier {
 
   // Load voice profiles
   Future<bool> loadVoiceProfiles() async {
+    print('🔊 TTSProvider: loadVoiceProfiles called');
     if (_currentUserId == null) {
+      print('🔊 TTSProvider: User not authenticated for loading voice profiles');
       _error = 'User not authenticated';
       notifyListeners();
       return false;
@@ -593,9 +855,19 @@ class TTSProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      print('🔊 TTSProvider: Calling TTSService.getVoiceProfiles...');
       _voiceProfiles = await TTSService.getVoiceProfiles(userToken: _currentUserId);
+      print('🔊 TTSProvider: Loaded ${_voiceProfiles.length} voice profiles');
+      for (final profile in _voiceProfiles) {
+        print('🔊 TTSProvider: Voice profile: ${profile.voiceName} (${profile.voiceId})');
+      }
+      
+      // Clear incompatible cache files after loading voice profiles
+      await clearIncompatibleCacheFiles();
+      
       return true;
     } catch (e) {
+      print('🔊 TTSProvider: Error loading voice profiles: $e');
       _error = 'Error loading voice profiles: $e';
       return false;
     } finally {
@@ -690,7 +962,36 @@ class TTSProvider extends ChangeNotifier {
     _voiceProfiles.clear();
     _subscription = null;
     _quota = null;
+    _selectedVoiceId = null;
     notifyListeners();
+  }
+
+  // Clear pronunciations for a specific vocabulary item
+  void clearPronunciationsForItem(String vocabEntryId) {
+    _pronunciations.remove(vocabEntryId);
+    _isGenerating.remove(vocabEntryId);
+    _isPlaying.remove(vocabEntryId);
+    print('🔊 TTSProvider: Cleared pronunciations for item: $vocabEntryId');
+    notifyListeners();
+  }
+
+  // Force regeneration of pronunciations for a specific vocabulary item
+  Future<bool> forceRegeneratePronunciations({
+    required VocabularyItem vocabularyItem,
+    List<String> versions = const ['normal', 'slow'],
+    String language = 'en',
+  }) async {
+    print('🔊 TTSProvider: forceRegeneratePronunciations called for: ${vocabularyItem.word}');
+    
+    // Clear existing pronunciations first
+    clearPronunciationsForItem(vocabularyItem.id);
+    
+    // Generate new pronunciations
+    return await generatePronunciations(
+      vocabularyItem: vocabularyItem,
+      versions: versions,
+      language: language,
+    );
   }
 
   // Check if user has TTS features available

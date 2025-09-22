@@ -66,9 +66,10 @@ class VocabularyItemCard extends StatelessWidget {
                             TTSButton(
                               vocabularyItem: item,
                               version: 'normal',
-                              size: 20,
+                              size: 28,
                               color: Theme.of(context).colorScheme.primary,
                             ),
+                            if (onProgressTap != null) const SizedBox(width: 8),
                           ],
                         ),
                         if (item.translation.isNotEmpty) ...[

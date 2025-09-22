@@ -56,5 +56,9 @@
 	<string>This app needs microphone access for audio features</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>This app needs speech recognition for audio features</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to photo library to select audio files</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>This app needs access to documents folder to select audio files</string>
 </dict>
 </plist>

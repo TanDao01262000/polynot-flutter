@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
+import '../providers/tts_provider.dart';
 import '../screens/home_screen.dart';
 import '../screens/user_login_screen.dart';
 
@@ -24,10 +25,28 @@ class _AuthWrapperState extends State<AuthWrapper> {
     try {
       print('🔐 AuthWrapper: Initializing authentication...');
       final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final ttsProvider = Provider.of<TTSProvider>(context, listen: false);
       
       // Use post-frame callback to avoid setState during build
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         await userProvider.initializeAuth();
+        
+        // Initialize TTS provider if user is logged in
+        if (userProvider.isLoggedIn && userProvider.sessionToken != null) {
+          print('🔊 AuthWrapper: Initializing TTS provider for logged-in user');
+          ttsProvider.setCurrentUserId(userProvider.sessionToken!);
+          
+          try {
+            await ttsProvider.loadVoiceProfiles();
+            await ttsProvider.loadSelectedVoiceId();
+            print('🔊 AuthWrapper: TTS provider initialized successfully');
+          } catch (e) {
+            print('🔊 AuthWrapper: Error initializing TTS provider: $e');
+          }
+        } else {
+          print('🔊 AuthWrapper: User not logged in, skipping TTS initialization');
+        }
+        
         if (mounted) {
           setState(() {
             _isInitialized = true;
