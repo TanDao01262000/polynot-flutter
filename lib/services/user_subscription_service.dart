@@ -152,6 +152,8 @@ class UserQuotaResponse {
   final int remainingRequests;
   final bool hasQuota;
   final UserSubscriptionFeatures features;
+  final int voiceClonesUsed;
+  final int voiceClonesLimit;
 
   UserQuotaResponse({
     required this.success,
@@ -161,6 +163,8 @@ class UserQuotaResponse {
     required this.remainingRequests,
     required this.hasQuota,
     required this.features,
+    required this.voiceClonesUsed,
+    required this.voiceClonesLimit,
   });
 
   factory UserQuotaResponse.fromJson(Map<String, dynamic> json) {
@@ -172,6 +176,8 @@ class UserQuotaResponse {
       remainingRequests: json['remaining_requests'] ?? 0,
       hasQuota: json['has_quota'] ?? false,
       features: UserSubscriptionFeatures.fromJson(json['features'] ?? {}),
+      voiceClonesUsed: json['voice_clones_used'] ?? 0,
+      voiceClonesLimit: json['voice_clones_limit'] ?? (json['features']?['custom_voices'] == true ? 5 : 0),
     );
   }
 
@@ -184,6 +190,8 @@ class UserQuotaResponse {
       'remaining_requests': remainingRequests,
       'has_quota': hasQuota,
       'features': features.toJson(),
+      'voice_clones_used': voiceClonesUsed,
+      'voice_clones_limit': voiceClonesLimit,
     };
   }
 
@@ -191,8 +199,6 @@ class UserQuotaResponse {
   int get monthlyCharacterLimit => maxRequests;
   int get charactersUsedThisMonth => usageToday;
   int get charactersRemaining => remainingRequests;
-  int get voiceClonesLimit => features.customVoices ? 5 : 0; // Default limit
-  int get voiceClonesUsed => 0; // Not provided in API
   int get voiceClonesRemaining => voiceClonesLimit - voiceClonesUsed;
 
   double get characterUsagePercentage {
