@@ -9,6 +9,7 @@ import 'providers/vocabulary_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/flashcard_provider.dart';
 import 'providers/tts_provider.dart';
+import 'providers/user_plan_provider.dart';
 import 'screens/vocabulary_list_screen.dart';
 import 'screens/flashcard_screens.dart';
 import 'screens/vocabulary_tts_demo_screen.dart';
@@ -45,6 +46,7 @@ class MyApp extends StatelessWidget{
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => FlashcardProvider()),
         ChangeNotifierProvider(create: (_) => TTSProvider()),
+        ChangeNotifierProvider(create: (_) => UserPlanProvider()),
       ],
       child: MaterialApp(
         title: "Polynot",

@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/vocabulary_provider.dart';
 import '../providers/tts_provider.dart';
+import '../providers/user_plan_provider.dart';
 import '../models/user.dart';
 import '../services/user_service.dart';
+import '../widgets/user_plan_widget.dart';
 import 'voice_cloning_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
@@ -22,6 +24,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final ttsProvider = Provider.of<TTSProvider>(context, listen: false);
+      final userPlanProvider = Provider.of<UserPlanProvider>(context, listen: false);
       
       if (userProvider.currentUser != null) {
         userProvider.getUserProfile(userProvider.currentUser!.userName);
@@ -36,6 +39,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           // Load voice profiles and selected voice
           ttsProvider.loadVoiceProfiles();
           ttsProvider.loadSelectedVoiceId();
+          
+          // Load user plan information
+          if (userPlanProvider.currentUserId == null && userProvider.sessionToken != null) {
+            userPlanProvider.setCurrentUserId(userProvider.sessionToken!);
+          }
+          userPlanProvider.loadUserPlan();
         }
     });
   }
@@ -152,6 +161,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 24),
+
+                // User Plan Card
+                const UserPlanWidget(),
                 const SizedBox(height: 24),
 
                 // Statistics Card

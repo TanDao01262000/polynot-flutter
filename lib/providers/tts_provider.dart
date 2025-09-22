@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/tts_service.dart';
 import '../models/vocabulary_item.dart';
+import 'user_plan_provider.dart';
 
 class TTSProvider extends ChangeNotifier {
   // State management
@@ -394,6 +395,24 @@ class TTSProvider extends ChangeNotifier {
       print('🔊 TTSProvider: Selected voice profile not found: $_selectedVoiceId');
       return null;
     }
+  }
+
+  // Check if user can use voice cloning based on their plan
+  bool canUseVoiceCloning(UserPlanProvider? userPlanProvider) {
+    if (userPlanProvider == null) return false;
+    return userPlanProvider.canUseVoiceCloning;
+  }
+
+  // Check if user has unlimited TTS based on their plan
+  bool hasUnlimitedTts(UserPlanProvider? userPlanProvider) {
+    if (userPlanProvider == null) return false;
+    return userPlanProvider.hasUnlimitedTts;
+  }
+
+  // Check if user can perform TTS generation based on their plan
+  bool canPerformTtsGeneration(UserPlanProvider? userPlanProvider) {
+    if (userPlanProvider == null) return true; // Default to allowing if no plan info
+    return userPlanProvider.charactersRemaining > 0 || userPlanProvider.hasUnlimitedTts;
   }
 
   // Check if selected voice is available
