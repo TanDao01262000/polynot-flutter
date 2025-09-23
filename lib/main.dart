@@ -8,10 +8,17 @@ import 'services/partner_service.dart';
 import 'providers/vocabulary_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/flashcard_provider.dart';
+import 'providers/tts_provider.dart';
+import 'providers/user_plan_provider.dart';
 import 'screens/vocabulary_list_screen.dart';
 import 'screens/flashcard_screens.dart';
+import 'screens/vocabulary_tts_demo_screen.dart';
+import 'widgets/auth_wrapper.dart';
 
 void main() async {
+  // Ensure Flutter bindings are initialized
+  WidgetsFlutterBinding.ensureInitialized();
+  
   // Load environment variables
   await dotenv.load(fileName: ".env");
   
@@ -38,6 +45,8 @@ class MyApp extends StatelessWidget{
         ChangeNotifierProvider(create: (_) => VocabularyProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => FlashcardProvider()),
+        ChangeNotifierProvider(create: (_) => TTSProvider()),
+        ChangeNotifierProvider(create: (_) => UserPlanProvider()),
       ],
       child: MaterialApp(
         title: "Polynot",
@@ -45,12 +54,13 @@ class MyApp extends StatelessWidget{
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         ),
-        home: const HomeScreen(),
+        home: const AuthWrapper(),
         routes: {
           '/login': (context) => const UserLoginScreen(),
           '/register': (context) => const UserRegistrationScreen(),
           '/vocabulary-list': (context) => const VocabularyListScreen(),
           '/flashcards': (context) => const FlashcardMainScreen(),
+          '/tts-demo': (context) => const VocabularyTTSDemoScreen(),
         },
         debugShowCheckedModeBanner: false,
       ),

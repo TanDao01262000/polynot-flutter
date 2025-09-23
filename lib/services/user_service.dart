@@ -124,7 +124,7 @@ class UserService {
   }
 
   // 2.4 Record User Login
-  static Future<LoginResponse> recordUserLogin(String userName) async {
+  static Future<LoginResponse?> recordUserLogin(String userName) async {
     try {
       final uri = Uri.parse('$baseUrl/users/$userName/login');
       
@@ -141,62 +141,72 @@ class UserService {
       if (response.statusCode == 200) {
         final responseBody = response.body.trim();
         if (responseBody.isEmpty) {
-          print('WARNING: Empty response body from login endpoint');
-          throw Exception('Empty response from login endpoint');
+          print('WARNING: Empty response body from record login endpoint - this is OK');
+          return null;
         }
         
         final jsonData = jsonDecode(responseBody);
         if (jsonData == null) {
-          print('WARNING: Null JSON data from login endpoint');
-          throw Exception('Null response from login endpoint');
+          print('WARNING: Null JSON data from record login endpoint - this is OK');
+          return null;
         }
         
         return LoginResponse.fromJson(jsonData);
       } else if (response.statusCode == 404) {
-        throw Exception('User not found');
+        print('WARNING: User not found for record login - this is OK');
+        return null;
       } else {
-        print('ERROR: Failed to record login - ${response.statusCode}');
+        print('WARNING: Failed to record login - ${response.statusCode} - this is OK');
         print('Error Body: ${response.body}');
-        throw Exception('Failed to record login: ${response.statusCode} - ${response.body}');
+        return null;
       }
     } catch (e) {
-      print('EXCEPTION in recordUserLogin: $e');
-      throw Exception('Network error: $e');
+      print('WARNING: Exception in recordUserLogin: $e - this is OK');
+      return null;
     }
   }
 
   // 2.5 Authenticate User with Password
-  static Future<LoginResponse> authenticateUser(String userName, String password) async {
+  static Future<LoginResponse> authenticateUser(String email, String password) async {
     try {
-      // First, get the user's profile to verify they exist
-      final user = await getUserByUsername(userName);
+      // Use the real login endpoint that returns a proper session token
+      final uri = Uri.parse('$baseUrl/auth/login');
       
-      // CRITICAL SECURITY FIX: Implement proper password validation
-      // Verify the password against the stored hash
-      final isPasswordValid = await PasswordService.verifyPassword(userName, password);
+      print('Authenticating user at: $uri');
       
-      if (!isPasswordValid) {
-        throw Exception('Invalid username or password');
-      }
-      
-      // Generate a session token (in a real app, this would come from the server)
-      final sessionToken = 'session_${userName}_${DateTime.now().millisecondsSinceEpoch}';
-      
-      // Create a login response
-      final loginResponse = LoginResponse(
-        user: user,
-        sessionToken: sessionToken,
-        streakDays: user.streakDays,
-        lastLogin: DateTime.now(),
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+        }),
       );
-      
-      print('User authentication successful for: $userName');
-      return loginResponse;
+
+      print('Auth Response Status: ${response.statusCode}');
+      print('Auth Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final responseBody = response.body.trim();
+        if (responseBody.isEmpty) {
+          print('WARNING: Empty response body from auth endpoint');
+          throw Exception('Empty response from auth endpoint');
+        }
+        
+        final jsonData = jsonDecode(responseBody);
+        if (jsonData == null) {
+          print('WARNING: Null JSON data from auth endpoint');
+          throw Exception('Null response from auth endpoint');
+        }
+        
+        return LoginResponse.fromJson(jsonData);
+      } else {
+        print('ERROR: Authentication failed - ${response.statusCode}');
+        print('Error Body: ${response.body}');
+        throw Exception('Authentication failed: ${response.statusCode} - ${response.body}');
+      }
     } catch (e) {
       print('EXCEPTION in authenticateUser: $e');
-      if (e.toString().contains('User not found')) {
-        throw Exception('Invalid username or password');
-      }
       throw Exception('Invalid username or password');
     }
   }

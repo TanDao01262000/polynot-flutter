@@ -4,6 +4,7 @@ import '../models/vocabulary_category.dart';
 import '../models/vocabulary_item.dart';
 import '../providers/vocabulary_provider.dart';
 import '../providers/user_provider.dart';
+import '../providers/tts_provider.dart';
 import '../widgets/vocabulary_interaction_card.dart';
 import '../utils/app_utils.dart';
 import 'vocabulary_generation_screen.dart';
@@ -50,10 +51,15 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
     
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final vocabProvider = Provider.of<VocabularyProvider>(context, listen: false);
+    final ttsProvider = Provider.of<TTSProvider>(context, listen: false);
     
-    if (userProvider.currentUser != null) {
-      vocabProvider.setCurrentUserId(userProvider.currentUser!.id);
+    if (userProvider.currentUser != null && userProvider.sessionToken != null) {
+      print('🔐 VocabularyListScreen: Setting session token from user provider');
+      vocabProvider.setSessionToken(userProvider.sessionToken!);
+      ttsProvider.setCurrentUserId(userProvider.sessionToken!);
       await vocabProvider.getVocabularyLists();
+    } else {
+      print('🔐 VocabularyListScreen: No session token available - user: ${userProvider.currentUser != null}, token: ${userProvider.sessionToken != null}');
     }
     
     _loadVocabularyList();

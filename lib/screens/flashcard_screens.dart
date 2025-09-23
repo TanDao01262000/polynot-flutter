@@ -161,8 +161,8 @@ class _FlashcardHomeScreenState extends State<FlashcardHomeScreen> {
       final userProvider = context.read<UserProvider>();
       final flashcardProvider = context.read<FlashcardProvider>();
       
-      if (userProvider.isLoggedIn && userProvider.currentUser?.id != null) {
-        flashcardProvider.initializeWithUser(userProvider.currentUser!.id);
+      if (userProvider.isLoggedIn && userProvider.sessionToken != null) {
+        flashcardProvider.initializeWithUser(userProvider.sessionToken!);
       }
     });
   }

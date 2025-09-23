@@ -36,24 +36,26 @@ class FlashcardService {
     return '${body.substring(0, max)}…(truncated)';
   }
 
-  static Map<String, String> _getHeaders(String? userUuid) {
+  static Map<String, String> _getHeaders(String? sessionToken) {
     final headers = <String, String>{
       'Content-Type': 'application/json',
     };
-    if (userUuid != null) {
-      _log('Using user ID for authorization: $userUuid');
-      headers['Authorization'] = 'Bearer $userUuid';
+    if (sessionToken != null) {
+      _log('Using session token for authorization');
+      _log('Token length: ${sessionToken.length}');
+      _log('Token preview: ${sessionToken.substring(0, sessionToken.length > 50 ? 50 : sessionToken.length)}...');
+      headers['Authorization'] = 'Bearer $sessionToken';
     }
     return headers;
   }
 
   // Get available study modes
-  static Future<List<StudyMode>> getStudyModes() async {
+  static Future<List<StudyMode>> getStudyModes({String? sessionToken}) async {
     final uri = Uri.parse('$baseUrl/flashcard/study-modes');
     _log('GET $uri');
     
     try {
-      final response = await http.get(uri, headers: _getHeaders(null));
+      final response = await http.get(uri, headers: _getHeaders(sessionToken));
       _log('Status: ${response.statusCode}');
       _log('Response: ${_trimBody(response.body)}');
 
@@ -72,12 +74,12 @@ class FlashcardService {
   }
 
   // Get available session types
-  static Future<List<SessionType>> getSessionTypes() async {
+  static Future<List<SessionType>> getSessionTypes({String? sessionToken}) async {
     final uri = Uri.parse('$baseUrl/flashcard/session-types');
     _log('GET $uri');
     
     try {
-      final response = await http.get(uri, headers: _getHeaders(null));
+      final response = await http.get(uri, headers: _getHeaders(sessionToken));
       _log('Status: ${response.statusCode}');
       _log('Response: ${_trimBody(response.body)}');
 
@@ -96,12 +98,12 @@ class FlashcardService {
   }
 
   // Get available difficulty ratings
-  static Future<List<DifficultyRating>> getDifficultyRatings() async {
+  static Future<List<DifficultyRating>> getDifficultyRatings(String? sessionToken) async {
     final uri = Uri.parse('$baseUrl/flashcard/difficulty-ratings');
     _log('GET $uri');
     
     try {
-      final response = await http.get(uri, headers: _getHeaders(null));
+      final response = await http.get(uri, headers: _getHeaders(sessionToken));
       _log('Status: ${response.statusCode}');
       _log('Response: ${_trimBody(response.body)}');
 
@@ -122,7 +124,7 @@ class FlashcardService {
   // Create a new flashcard session
   static Future<CreateSessionResponse?> createSession(
     CreateSessionRequest request,
-    String userUuid,
+    String sessionToken,
   ) async {
     final uri = Uri.parse('$baseUrl/flashcard/session/create');
     _log('POST $uri');
@@ -131,7 +133,7 @@ class FlashcardService {
     try {
       final response = await http.post(
         uri,
-        headers: _getHeaders(userUuid),
+        headers: _getHeaders(sessionToken),
         body: jsonEncode(request.toJson()),
       );
 
@@ -152,12 +154,12 @@ class FlashcardService {
   }
 
   // Get current card in session
-  static Future<FlashcardCard?> getCurrentCard(String sessionId, String userUuid) async {
+  static Future<FlashcardCard?> getCurrentCard(String sessionId, String sessionToken) async {
     _logDebug('getCurrentCard called with sessionId: "$sessionId"');
     final uri = Uri.parse('$baseUrl/flashcard/session/$sessionId/current');
     
     try {
-      final response = await http.get(uri, headers: _getHeaders(userUuid));
+      final response = await http.get(uri, headers: _getHeaders(sessionToken));
 
       _log('Status: ${response.statusCode}');
       _log('Response: ${_trimBody(response.body)}');
@@ -182,7 +184,7 @@ class FlashcardService {
   static Future<FlashcardAnswerResult?> submitAnswer(
     String sessionId,
     FlashcardAnswer answer,
-    String userUuid,
+    String sessionToken,
   ) async {
     _logDebug('submitAnswer called with sessionId: "$sessionId", answer: "${answer.userAnswer}"');
     final uri = Uri.parse('$baseUrl/flashcard/session/$sessionId/answer');
@@ -192,7 +194,7 @@ class FlashcardService {
     try {
       final response = await http.post(
         uri,
-        headers: _getHeaders(userUuid),
+        headers: _getHeaders(sessionToken),
         body: jsonEncode(answer.toJson()),
       );
 
@@ -216,12 +218,12 @@ class FlashcardService {
   }
 
   // Get user's flashcard statistics
-  static Future<FlashcardStats?> getStats(String userUuid) async {
+  static Future<FlashcardStats?> getStats(String sessionToken) async {
     final uri = Uri.parse('$baseUrl/flashcard/stats');
     _log('GET $uri');
     
     try {
-      final response = await http.get(uri, headers: _getHeaders(userUuid));
+      final response = await http.get(uri, headers: _getHeaders(sessionToken));
       _log('Status: ${response.statusCode}');
       _log('Response: ${_trimBody(response.body)}');
 
@@ -239,12 +241,12 @@ class FlashcardService {
   }
 
   // Get flashcard analytics
-  static Future<FlashcardAnalytics?> getAnalytics(String userUuid, {int days = 30}) async {
+  static Future<FlashcardAnalytics?> getAnalytics(String sessionToken, {int days = 30}) async {
     final uri = Uri.parse('$baseUrl/flashcard/analytics?days=$days');
     _log('GET $uri');
     
     try {
-      final response = await http.get(uri, headers: _getHeaders(userUuid));
+      final response = await http.get(uri, headers: _getHeaders(sessionToken));
       _log('Status: ${response.statusCode}');
       _log('Response: ${_trimBody(response.body)}');
       print('SERVICE DEBUG: Status code: ${response.statusCode}');
@@ -267,12 +269,12 @@ class FlashcardService {
   }
 
   // Get user's flashcard sessions
-  static Future<List<FlashcardSession>> getSessions(String userUuid, {int limit = 50}) async {
+  static Future<List<FlashcardSession>> getSessions(String sessionToken, {int limit = 50}) async {
     final uri = Uri.parse('$baseUrl/flashcard/sessions?limit=$limit');
     _log('GET $uri');
     
     try {
-      final response = await http.get(uri, headers: _getHeaders(userUuid));
+      final response = await http.get(uri, headers: _getHeaders(sessionToken));
       _log('Status: ${response.statusCode}');
       _log('Response: ${_trimBody(response.body)}');
 
@@ -291,12 +293,12 @@ class FlashcardService {
   }
 
   // Delete a flashcard session
-  static Future<bool> deleteSession(String sessionId, String userUuid) async {
+  static Future<bool> deleteSession(String sessionId, String sessionToken) async {
     final uri = Uri.parse('$baseUrl/flashcard/session/$sessionId');
     _log('DELETE $uri');
     
     try {
-      final response = await http.delete(uri, headers: _getHeaders(userUuid));
+      final response = await http.delete(uri, headers: _getHeaders(sessionToken));
       _log('Status: ${response.statusCode}');
       _log('Response: ${_trimBody(response.body)}');
 

@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/vocabulary_provider.dart';
+import '../providers/tts_provider.dart';
+import '../providers/user_plan_provider.dart';
 import '../models/user.dart';
 import '../services/user_service.dart';
+import '../widgets/user_plan_widget.dart';
+import 'voice_cloning_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -16,12 +20,32 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Load user profile when screen initializes
+    // Load user profile and voice profiles when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final ttsProvider = Provider.of<TTSProvider>(context, listen: false);
+      final userPlanProvider = Provider.of<UserPlanProvider>(context, listen: false);
+      
       if (userProvider.currentUser != null) {
         userProvider.getUserProfile(userProvider.currentUser!.userName);
       }
+      
+        // Load voice profiles if user is authenticated
+        if (userProvider.isLoggedIn) {
+          // Set the current user ID for TTS provider if not already set
+          if (ttsProvider.currentUserId == null && userProvider.sessionToken != null) {
+            ttsProvider.setCurrentUserId(userProvider.sessionToken!);
+          }
+          // Load voice profiles and selected voice
+          ttsProvider.loadVoiceProfiles();
+          ttsProvider.loadSelectedVoiceId();
+          
+          // Load user plan information
+          if (userPlanProvider.currentUserId == null && userProvider.sessionToken != null) {
+            userPlanProvider.setCurrentUserId(userProvider.sessionToken!);
+          }
+          userPlanProvider.loadUserPlan();
+        }
     });
   }
 
@@ -139,6 +163,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ),
                 const SizedBox(height: 24),
 
+                // User Plan Card
+                const UserPlanWidget(),
+                const SizedBox(height: 24),
+
                 // Statistics Card
                 if (statistics != null) ...[
                   Card(
@@ -247,6 +275,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                           trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                           onTap: () {
                             _showLevelChangeDialog(context, userProvider, user.userName);
+                          },
+                        ),
+                        const Divider(),
+                        ListTile(
+                          leading: const Icon(Icons.record_voice_over, color: Colors.purple),
+                          title: const Text('Voice Settings'),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                          onTap: () {
+                            _showVoiceSelectionDialog(context);
                           },
                         ),
                         const Divider(),
@@ -396,6 +433,250 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     );
   }
 
+  void _showVoiceSelectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Consumer2<TTSProvider, UserPlanProvider>(
+          builder: (context, ttsProvider, userPlanProvider, child) {
+            return AlertDialog(
+              title: const Text('Voice Settings'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Select your preferred voice for pronunciation:'),
+                    const SizedBox(height: 16),
+                    if (ttsProvider.isLoading) ...[
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      const Text('Loading voice profiles...'),
+                    ] else ...[
+                      // Default voice option
+                      RadioListTile<String?>(
+                        title: const Text('Default Voice'),
+                        subtitle: const Text('System default voice'),
+                        value: null,
+                        groupValue: ttsProvider.selectedVoiceId,
+                        onChanged: (value) async {
+                          await ttsProvider.setSelectedVoiceId(value);
+                        },
+                      ),
+                      // Custom voice profiles (Premium only)
+                      const Divider(),
+                      Row(
+                        children: [
+                          const Text(
+                            'Custom Voices',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: userPlanProvider.canUseCustomVoices ? Colors.green : Colors.orange,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              userPlanProvider.canUseCustomVoices ? 'PREMIUM' : 'PREMIUM ONLY',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      
+                      if (userPlanProvider.canUseCustomVoices) ...[
+                        // Show custom voices for premium users
+                        if (ttsProvider.voiceProfiles.isNotEmpty) ...[
+                          ...ttsProvider.voiceProfiles.map((profile) {
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              child: RadioListTile<String?>(
+                                title: Text(profile.voiceName),
+                                subtitle: Text('${profile.provider} - ${profile.voiceId}'),
+                                value: profile.voiceId,
+                                groupValue: ttsProvider.selectedVoiceId,
+                                onChanged: (value) async {
+                                  await ttsProvider.setSelectedVoiceId(value);
+                                },
+                                secondary: PopupMenuButton<String>(
+                                  icon: const Icon(Icons.more_vert),
+                                  onSelected: (value) async {
+                                    if (value == 'delete') {
+                                      final confirmed = await _showDeleteConfirmation(context, profile.voiceName);
+                                      if (confirmed && mounted) {
+                                        final success = await ttsProvider.deleteVoiceProfile(profile.id);
+                                        if (success) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Voice "${profile.voiceName}" deleted successfully'),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                        } else {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Failed to delete voice: ${ttsProvider.error ?? "Unknown error"}'),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    const PopupMenuItem(
+                                      value: 'delete',
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.delete, color: Colors.red),
+                                          SizedBox(width: 8),
+                                          Text('Delete Voice'),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ] else ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'No custom voices available',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ] else ...[
+                        // Show premium upgrade message for non-premium users
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            border: Border.all(color: Colors.orange.shade200),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.lock,
+                                color: Colors.orange.shade600,
+                                size: 32,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Custom Voices are Premium Features',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade800,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Upgrade to Premium to create and use custom voice clones',
+                                style: TextStyle(
+                                  color: Colors.orange.shade700,
+                                  fontSize: 12,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      
+                      // Create new voice button (Premium only)
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: userPlanProvider.canUseVoiceCloning ? () {
+                            Navigator.of(context).pop(); // Close dialog
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const VoiceCloningScreen(),
+                              ),
+                            );
+                          } : () {
+                            // Show premium upgrade message
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('Voice cloning is a Premium feature. Upgrade to create custom voices!'),
+                                backgroundColor: Colors.orange,
+                                action: SnackBarAction(
+                                  label: 'Learn More',
+                                  textColor: Colors.white,
+                                  onPressed: () {
+                                    // Could navigate to upgrade page here
+                                  },
+                                ),
+                              ),
+                            );
+                          },
+                          icon: Icon(userPlanProvider.canUseVoiceCloning ? Icons.add : Icons.lock),
+                          label: Text(userPlanProvider.canUseVoiceCloning 
+                            ? 'Create New Voice Clone' 
+                            : 'Create New Voice Clone (Premium Only)'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: userPlanProvider.canUseVoiceCloning ? Colors.purple : Colors.grey,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<bool> _showDeleteConfirmation(BuildContext context, String voiceName) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Voice'),
+          content: Text('Are you sure you want to delete the voice "$voiceName"? This action cannot be undone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    ) ?? false;
+  }
+
   void _showLogoutDialog(BuildContext context, UserProvider userProvider) {
     showDialog(
       context: context,
@@ -409,9 +690,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.of(context).pop();
-                userProvider.logout();
+                await userProvider.logout();
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),

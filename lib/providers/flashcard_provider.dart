@@ -119,7 +119,7 @@ class FlashcardProvider extends ChangeNotifier {
       final results = await Future.wait([
         FlashcardService.getStudyModes(),
         FlashcardService.getSessionTypes(),
-        FlashcardService.getDifficultyRatings(),
+        FlashcardService.getDifficultyRatings(_currentUserId),
       ]);
 
       _studyModes = results[0] as List<StudyMode>;
@@ -153,6 +153,8 @@ class FlashcardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      print('DEBUG: FlashcardProvider.createSession - _currentUserId: ${_currentUserId != null ? _currentUserId!.substring(0, 50) + "..." : "NULL"}');
+      print('DEBUG: FlashcardProvider.createSession - Token length: ${_currentUserId?.length ?? 0}');
       final response = await FlashcardService.createSession(request, _currentUserId!);
       
       if (response != null && response.success) {

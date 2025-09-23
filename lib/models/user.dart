@@ -314,9 +314,13 @@ class LoginResponse {
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
     return LoginResponse(
       user: User.fromJson(json['user']),
-      sessionToken: json['session_token'],
-      streakDays: json['streak_days'],
-      lastLogin: DateTime.parse(json['last_login']),
+      sessionToken: json['access_token'] ?? json['session_token'] ?? '',
+      streakDays: json['streak_days'] ?? json['user']['streak_days'] ?? 0,
+      lastLogin: json['last_login'] != null 
+          ? DateTime.parse(json['last_login'])
+          : (json['user']['last_login'] != null 
+              ? DateTime.parse(json['user']['last_login'])
+              : DateTime.now()),
     );
   }
 }
