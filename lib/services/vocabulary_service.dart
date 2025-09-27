@@ -86,6 +86,17 @@ class VocabularyService {
     }
   }
 
+  // Check if response indicates token expiration
+  static bool _isTokenExpired(int statusCode, String responseBody) {
+    if (statusCode == 401) {
+      final body = responseBody.toLowerCase();
+      return body.contains('token is expired') || 
+             body.contains('invalid jwt') ||
+             body.contains('unable to parse or verify signature');
+    }
+    return false;
+  }
+
   // Helper method to capitalize language names to match backend format
   static String _capitalizeLanguage(String language) {
     switch (language.toLowerCase()) {

@@ -137,7 +137,7 @@ class _VocabularyGenerationScreenState extends State<VocabularyGenerationScreen>
         print('  - idiomsPerBatch: ${request.idiomsPerBatch}');
         print('  - Total in request: ${request.vocabPerBatch + request.phrasalVerbsPerBatch + request.idiomsPerBatch}');
 
-        context.read<VocabularyProvider>().generateVocabulary(request);
+        context.read<VocabularyProvider>().generateVocabulary(request, context: context);
 
         Navigator.push(
           context,
@@ -190,6 +190,7 @@ class _VocabularyGenerationScreenState extends State<VocabularyGenerationScreen>
             topicListName: _topicListNameController.text.trim().isEmpty
                 ? null
                 : _topicListNameController.text.trim(),
+            context: context,
           );
 
       Navigator.push(

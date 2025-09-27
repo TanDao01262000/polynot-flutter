@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import '../models/flashcard_models.dart';
 import '../services/flashcard_service.dart';
+import '../services/error_handler_service.dart';
 
 class FlashcardProvider extends ChangeNotifier {
   // Study configuration
@@ -201,6 +203,11 @@ class FlashcardProvider extends ChangeNotifier {
       // Enhanced error handling based on backend guide
       if (e.toString().contains('401')) {
         _sessionError = 'Authentication failed - please login again';
+        // Handle 401 errors globally
+        if (ErrorHandlerService.is401Error(e)) {
+          // Note: Context would need to be passed to this method for full error handling
+          print('🔐 FlashcardProvider: 401 error detected, but no context available for auto-logout');
+        }
       } else if (e.toString().contains('422')) {
         _sessionError = 'Invalid session parameters - please check your settings';
       } else if (e.toString().contains('500')) {
@@ -278,6 +285,11 @@ class FlashcardProvider extends ChangeNotifier {
       // Enhanced error handling based on backend guide
       if (e.toString().contains('401')) {
         _sessionError = 'Authentication failed - please login again';
+        // Handle 401 errors globally
+        if (ErrorHandlerService.is401Error(e)) {
+          // Note: Context would need to be passed to this method for full error handling
+          print('🔐 FlashcardProvider: 401 error detected, but no context available for auto-logout');
+        }
       } else if (e.toString().contains('404')) {
         _sessionError = 'Session expired or not found - please start a new session';
       } else if (e.toString().contains('422')) {

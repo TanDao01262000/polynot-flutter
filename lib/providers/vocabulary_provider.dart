@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import '../models/vocabulary_item.dart';
 import '../models/vocabulary_request.dart';
 import '../models/generate_response.dart';
 import '../models/vocabulary_category.dart';
 import '../services/vocabulary_service.dart';
+import '../services/error_handler_service.dart';
 
 class VocabularyProvider extends ChangeNotifier {
   List<VocabularyItem> _vocabularyItems = [];
@@ -606,7 +608,7 @@ class VocabularyProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> generateVocabulary(VocabularyRequest request) async {
+  Future<void> generateVocabulary(VocabularyRequest request, {BuildContext? context}) async {
     print('📝 GenerateVocabulary Debug: Storing request');
     print('📝 GenerateVocabulary Debug: Request parameters:');
     print('  - topic: ${request.topic}');
@@ -629,6 +631,11 @@ class VocabularyProvider extends ChangeNotifier {
       _error = e.toString();
       _vocabularyItems = [];
       _lastResponse = null;
+      
+      // Handle 401 errors
+      if (ErrorHandlerService.is401Error(e) && context != null) {
+        await ErrorHandlerService.handle401Error(context, e.toString());
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -646,6 +653,7 @@ class VocabularyProvider extends ChangeNotifier {
     int delaySeconds = 2,
     bool saveTopicList = true,
     String? topicListName,
+    BuildContext? context,
   }) async {
     _isLoading = true;
     _error = null;
@@ -687,6 +695,11 @@ class VocabularyProvider extends ChangeNotifier {
       _error = e.toString();
       _vocabularyItems = [];
       _lastResponse = null;
+      
+      // Handle 401 errors
+      if (ErrorHandlerService.is401Error(e) && context != null) {
+        await ErrorHandlerService.handle401Error(context, e.toString());
+      }
     } finally {
       _isLoading = false;
       notifyListeners();

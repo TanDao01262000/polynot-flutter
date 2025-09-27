@@ -261,6 +261,12 @@ class UserProvider with ChangeNotifier {
     print('🔐 User logged out and auth data cleared');
   }
 
+  // Handle token expiration - called when 401 errors are detected
+  Future<void> handleTokenExpiration() async {
+    print('🔐 Token expired, logging out user automatically');
+    await logout();
+  }
+
   // Set current user (for testing or manual setting)
   void setCurrentUser(User user) {
     _currentUser = user;
