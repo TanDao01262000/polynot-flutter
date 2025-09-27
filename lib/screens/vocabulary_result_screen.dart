@@ -410,9 +410,17 @@ class _VocabularyResultScreenState extends State<VocabularyResultScreen> {
       floatingActionButton: Consumer<VocabularyProvider>(
         builder: (context, provider, child) {
           return FloatingActionButton.extended(
-            onPressed: () {
-              provider.clearVocabulary();
-              Navigator.pop(context);
+            onPressed: () async {
+              // Show loading indicator
+              AppUtils.showLoadingSnackBar(context, 'Generating more vocabulary...');
+              
+              // Regenerate with same parameters
+              await provider.regenerateVocabulary();
+              
+              // Show success message if no error
+              if (provider.error == null) {
+                AppUtils.showSuccessSnackBar(context, 'New vocabulary generated!');
+              }
             },
             icon: const Icon(Icons.refresh),
             label: const Text('Generate More'),

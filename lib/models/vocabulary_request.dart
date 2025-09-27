@@ -25,12 +25,39 @@ class VocabularyRequest {
     this.category,
   });
 
+  // Helper method to capitalize language names to match backend format
+  String _capitalizeLanguage(String language) {
+    switch (language.toLowerCase()) {
+      case 'english':
+        return 'English';
+      case 'spanish':
+        return 'Spanish';
+      case 'french':
+        return 'French';
+      case 'german':
+        return 'German';
+      case 'italian':
+        return 'Italian';
+      case 'chinese':
+        return 'Chinese';
+      case 'japanese':
+        return 'Japanese';
+      case 'korean':
+        return 'Korean';
+      case 'vietnamese':
+        return 'Vietnamese';
+      default:
+        // Fallback: capitalize first letter
+        return language.isEmpty ? language : language[0].toUpperCase() + language.substring(1).toLowerCase();
+    }
+  }
+
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{
       'topic': topic,
       'level': level,
-      'language_to_learn': languageToLearn,
-      'learners_native_language': learnersNativeLanguage,
+      'language_to_learn': _capitalizeLanguage(languageToLearn),
+      'learners_native_language': _capitalizeLanguage(learnersNativeLanguage),
       'vocab_per_batch': vocabPerBatch,
       'phrasal_verbs_per_batch': phrasalVerbsPerBatch,
       'idioms_per_batch': idiomsPerBatch,
@@ -38,12 +65,14 @@ class VocabularyRequest {
       'save_topic_list': saveTopicList,
     };
 
-    // Ensure topic_list_name is sent if saving is enabled
+    // Only include topic_list_name if saving is enabled, otherwise explicitly set to null
     if (saveTopicList) {
       final effectiveName = (topicListName == null || topicListName!.trim().isEmpty)
           ? topic
           : topicListName!.trim();
       json['topic_list_name'] = effectiveName;
+    } else {
+      json['topic_list_name'] = null;
     }
 
     if (category != null) {

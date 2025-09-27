@@ -6,7 +6,7 @@ import '../models/user.dart';
 import 'user_service.dart';
 
 class AuthService {
-  static const String _sessionTokenKey = 'session_token';
+  static const String _sessionTokenKey = 'user_session_token'; // Match UserProvider key
   static const String _userDataKey = 'user_data';
   
   static String get baseUrl => dotenv.env['LOCAL_API_ENDPOINT'] ?? 'http://localhost:8000';
@@ -38,7 +38,11 @@ class AuthService {
   // Get stored session token
   static Future<String?> getSessionToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_sessionTokenKey);
+    final token = prefs.getString(_sessionTokenKey);
+    print('🔐 AuthService.getSessionToken() called');
+    print('🔐 Looking for key: $_sessionTokenKey');
+    print('🔐 Token found: ${token != null ? "${token.substring(0, 20)}..." : "NULL"}');
+    return token;
   }
 
   // Get stored user data
@@ -74,7 +78,7 @@ class AuthService {
         Uri.parse('$baseUrl/auth/verify'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': sessionToken,
+          'Authorization': 'Bearer $sessionToken',
         },
       );
 
@@ -104,7 +108,7 @@ class AuthService {
           Uri.parse('$baseUrl/auth/logout'),
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': sessionToken,
+            'Authorization': 'Bearer $sessionToken',
           },
         );
       } catch (e) {
@@ -126,16 +130,23 @@ class AuthService {
 
   // Get authentication headers for API calls
   static Future<Map<String, String>> getAuthHeaders() async {
+    print('🔐 AuthService.getAuthHeaders() called');
     final sessionToken = await getSessionToken();
     
     if (sessionToken == null) {
+      print('🔐 ERROR: No session token found - user not authenticated');
       throw Exception('No session token found - user not authenticated');
     }
     
-    return {
+    final headers = {
       'Content-Type': 'application/json',
-      'Authorization': sessionToken,
+      'Authorization': 'Bearer $sessionToken',
     };
+    
+    print('🔐 Generated headers: ${headers.keys.join(', ')}');
+    print('🔐 Authorization header: ${headers['Authorization']!.substring(0, 30)}...');
+    
+    return headers;
   }
 
   // Handle session expiration

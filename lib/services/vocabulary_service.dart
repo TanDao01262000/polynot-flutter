@@ -7,6 +7,8 @@ import '../models/vocabulary_request.dart';
 import '../models/generate_response.dart';
 import '../models/vocabulary_category.dart';
 import '../utils/string_extensions.dart';
+import 'auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class VocabularyService {
   static String get baseUrl {
@@ -37,19 +39,109 @@ class VocabularyService {
     if (body.length <= max) return body;
     return '${body.substring(0, max)}…(truncated)';
   }
+
+  // Get authenticated headers for API requests
+  static Future<Map<String, String>> _getAuthenticatedHeaders() async {
+    try {
+      _log('🔐 Attempting to get auth headers...');
+      
+      // Try to get token directly from SharedPreferences (most reliable)
+      final prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('user_session_token');
+      
+      _log('🔐 Direct SharedPreferences check: ${token != null ? "FOUND" : "NULL"}');
+      
+      if (token != null) {
+        final headers = {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        };
+        _log('🔐 Auth headers created successfully from SharedPreferences');
+        _log('🔐 Authorization header: ${headers['Authorization']!.substring(0, 30)}...');
+        return headers;
+      }
+      
+      // Fallback to AuthService
+      _log('🔐 Falling back to AuthService...');
+      final headers = await AuthService.getAuthHeaders();
+      _log('🔐 Auth headers retrieved from AuthService');
+      return headers;
+    } catch (e) {
+      _log('⚠️ Failed to get auth headers: $e');
+      _log('⚠️ Falling back to basic headers (this will cause 401)');
+      // Return basic headers without authentication as fallback
+      return {
+        'Content-Type': 'application/json',
+      };
+    }
+  }
+
+  // Handle authentication errors
+  static Exception _handleAuthError(int statusCode, String responseBody) {
+    if (statusCode == 401) {
+      _log('Authentication failed: 401 Unauthorized');
+      return Exception('Authentication required. Please log in to generate vocabulary.');
+    } else {
+      return Exception('Failed to generate vocabulary: $statusCode $responseBody');
+    }
+  }
+
+  // Helper method to capitalize language names to match backend format
+  static String _capitalizeLanguage(String language) {
+    switch (language.toLowerCase()) {
+      case 'english':
+        return 'English';
+      case 'spanish':
+        return 'Spanish';
+      case 'french':
+        return 'French';
+      case 'german':
+        return 'German';
+      case 'italian':
+        return 'Italian';
+      case 'chinese':
+        return 'Chinese';
+      case 'japanese':
+        return 'Japanese';
+      case 'korean':
+        return 'Korean';
+      case 'vietnamese':
+        return 'Vietnamese';
+      default:
+        // Fallback: capitalize first letter
+        return language.isEmpty ? language : language[0].toUpperCase() + language.substring(1).toLowerCase();
+    }
+  }
   
   // Single topic generation
   static Future<GenerateResponse> generateSingleTopic(VocabularyRequest request) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/generate/single');
     _log('POST $uri');
-    _log('Body: ${jsonEncode(request.toJson())}');
+    final requestBody = request.toJson();
+    _log('Request Body: ${jsonEncode(requestBody)}');
+    _log('🔍 Request format check:');
+    _log('  - topic: "${requestBody['topic']}"');
+    _log('  - level: "${requestBody['level']}"');
+    _log('  - language_to_learn: "${requestBody['language_to_learn']}"');
+    _log('  - learners_native_language: "${requestBody['learners_native_language']}"');
+    _log('  - vocab_per_batch: ${requestBody['vocab_per_batch']}');
+    _log('  - phrasal_verbs_per_batch: ${requestBody['phrasal_verbs_per_batch']}');
+    _log('  - idioms_per_batch: ${requestBody['idioms_per_batch']}');
+    _log('🔍 Total items being requested: ${(requestBody['vocab_per_batch'] ?? 0) + (requestBody['phrasal_verbs_per_batch'] ?? 0) + (requestBody['idioms_per_batch'] ?? 0)}');
+    _log('  - save_topic_list: ${requestBody['save_topic_list']}');
+    _log('  - topic_list_name: ${requestBody['topic_list_name']}');
     try {
+      final headers = await _getAuthenticatedHeaders();
+      _log('Headers: ${headers.keys.join(', ')}');
+      if (headers.containsKey('Authorization')) {
+        final authHeader = headers['Authorization']!;
+        _log('🔐 Authorization: ${authHeader.substring(0, 20)}...');
+      }
+      
       final response = await http.post(
         uri,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: jsonEncode(request.toJson()),
       );
 
@@ -63,7 +155,7 @@ class VocabularyService {
           _log('Falling back to mock due to non-200 status');
           return _getMockResponse(request);
         }
-        throw Exception('Failed to generate vocabulary: ${response.statusCode} ${response.body}');
+        throw _handleAuthError(response.statusCode, response.body);
       }
     } catch (e) {
       _log('Error: $e');
@@ -91,36 +183,32 @@ class VocabularyService {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/generate/multiple');
     _log('POST $uri');
-    _log('Body: ${jsonEncode({
+    final requestBody = {
       'topics': topics,
       'level': level,
-      'language_to_learn': languageToLearn,
-      'learners_native_language': learnersNativeLanguage,
+      'language_to_learn': _capitalizeLanguage(languageToLearn),
+      'learners_native_language': _capitalizeLanguage(learnersNativeLanguage),
       'vocab_per_batch': vocabPerBatch,
       'phrasal_verbs_per_batch': phrasalVerbsPerBatch,
       'idioms_per_batch': idiomsPerBatch,
       'delay_seconds': delaySeconds,
       'save_topic_list': saveTopicList,
       'topic_list_name': topicListName,
-    })}');
+    };
+    _log('Body: ${jsonEncode(requestBody)}');
+    _log('🔍 Multiple Topics Request Debug:');
+    _log('  - vocab_per_batch: $vocabPerBatch');
+    _log('  - phrasal_verbs_per_batch: $phrasalVerbsPerBatch');
+    _log('  - idioms_per_batch: $idiomsPerBatch');
+    _log('🔍 Total items being requested: ${vocabPerBatch + phrasalVerbsPerBatch + idiomsPerBatch}');
     try {
+      final headers = await _getAuthenticatedHeaders();
+      _log('Headers: ${headers.keys.join(', ')}');
+      
       final response = await http.post(
         uri,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'topics': topics,
-          'level': level,
-          'language_to_learn': languageToLearn,
-          'learners_native_language': learnersNativeLanguage,
-          'vocab_per_batch': vocabPerBatch,
-          'phrasal_verbs_per_batch': phrasalVerbsPerBatch,
-          'idioms_per_batch': idiomsPerBatch,
-          'delay_seconds': delaySeconds,
-          'save_topic_list': saveTopicList,
-          'topic_list_name': topicListName,
-        }),
+        headers: headers,
+        body: jsonEncode(requestBody),
       );
 
       _log('Status: ${response.statusCode}');
@@ -141,7 +229,7 @@ class VocabularyService {
             idiomsPerBatch: idiomsPerBatch,
           ));
         }
-        throw Exception('Failed to generate vocabulary: ${response.statusCode} ${response.body}');
+        throw _handleAuthError(response.statusCode, response.body);
       }
     } catch (e) {
       _log('Error: $e');
@@ -178,24 +266,25 @@ class VocabularyService {
     _log('Body: ${jsonEncode({
       'category': category,
       'level': level,
-      'language_to_learn': languageToLearn,
-      'learners_native_language': learnersNativeLanguage,
+      'language_to_learn': _capitalizeLanguage(languageToLearn),
+      'learners_native_language': _capitalizeLanguage(learnersNativeLanguage),
       'vocab_per_batch': vocabPerBatch,
       'phrasal_verbs_per_batch': phrasalVerbsPerBatch,
       'idioms_per_batch': idiomsPerBatch,
       'delay_seconds': delaySeconds,
     })}');
     try {
+      final headers = await _getAuthenticatedHeaders();
+      _log('Headers: ${headers.keys.join(', ')}');
+      
       final response = await http.post(
         uri,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: jsonEncode({
           'category': category,
           'level': level,
-          'language_to_learn': languageToLearn,
-          'learners_native_language': learnersNativeLanguage,
+          'language_to_learn': _capitalizeLanguage(languageToLearn),
+          'learners_native_language': _capitalizeLanguage(learnersNativeLanguage),
           'vocab_per_batch': vocabPerBatch,
           'phrasal_verbs_per_batch': phrasalVerbsPerBatch,
           'idioms_per_batch': idiomsPerBatch,
@@ -222,7 +311,7 @@ class VocabularyService {
             category: category,
           ));
         }
-        throw Exception('Failed to generate vocabulary: ${response.statusCode} ${response.body}');
+        throw _handleAuthError(response.statusCode, response.body);
       }
     } catch (e) {
       _log('Error: $e');

@@ -20,6 +20,18 @@ class VocabularyProvider extends ChangeNotifier {
   bool _hasMore = true;
   String? _currentUserId;
   Set<String> _savingItems = {};
+  
+  // Multiple topics generation parameters
+  List<String>? _lastMultipleTopics;
+  String? _lastMultipleLevel;
+  String? _lastMultipleLanguageToLearn;
+  String? _lastMultipleLearnersNativeLanguage;
+  int? _lastMultipleVocabPerBatch;
+  int? _lastMultiplePhrasalVerbsPerBatch;
+  int? _lastMultipleIdiomsPerBatch;
+  int? _lastMultipleDelaySeconds;
+  bool? _lastMultipleSaveTopicList;
+  String? _lastMultipleTopicListName;
 
   // Getters
   List<VocabularyItem> get vocabularyItems => _vocabularyItems;
@@ -595,6 +607,14 @@ class VocabularyProvider extends ChangeNotifier {
   }
 
   Future<void> generateVocabulary(VocabularyRequest request) async {
+    print('📝 GenerateVocabulary Debug: Storing request');
+    print('📝 GenerateVocabulary Debug: Request parameters:');
+    print('  - topic: ${request.topic}');
+    print('  - vocabPerBatch: ${request.vocabPerBatch}');
+    print('  - phrasalVerbsPerBatch: ${request.phrasalVerbsPerBatch}');
+    print('  - idiomsPerBatch: ${request.idiomsPerBatch}');
+    print('  - Total: ${request.vocabPerBatch + request.phrasalVerbsPerBatch + request.idiomsPerBatch}');
+    
     _isLoading = true;
     _error = null;
     _currentRequest = request;
@@ -629,6 +649,22 @@ class VocabularyProvider extends ChangeNotifier {
   }) async {
     _isLoading = true;
     _error = null;
+    
+    // Store parameters for regeneration
+    _lastMultipleTopics = List.from(topics);
+    _lastMultipleLevel = level;
+    _lastMultipleLanguageToLearn = languageToLearn;
+    _lastMultipleLearnersNativeLanguage = learnersNativeLanguage;
+    _lastMultipleVocabPerBatch = vocabPerBatch;
+    _lastMultiplePhrasalVerbsPerBatch = phrasalVerbsPerBatch;
+    _lastMultipleIdiomsPerBatch = idiomsPerBatch;
+    _lastMultipleDelaySeconds = delaySeconds;
+    _lastMultipleSaveTopicList = saveTopicList;
+    _lastMultipleTopicListName = topicListName;
+    
+    // Clear single topic request since we're using multiple topics
+    _currentRequest = null;
+    
     notifyListeners();
 
     try {
@@ -700,6 +736,84 @@ class VocabularyProvider extends ChangeNotifier {
     _error = null;
     _currentRequest = null;
     _lastResponse = null;
+    
+    // Clear multiple topics parameters
+    _lastMultipleTopics = null;
+    _lastMultipleLevel = null;
+    _lastMultipleLanguageToLearn = null;
+    _lastMultipleLearnersNativeLanguage = null;
+    _lastMultipleVocabPerBatch = null;
+    _lastMultiplePhrasalVerbsPerBatch = null;
+    _lastMultipleIdiomsPerBatch = null;
+    _lastMultipleDelaySeconds = null;
+    _lastMultipleSaveTopicList = null;
+    _lastMultipleTopicListName = null;
+    
+    notifyListeners();
+  }
+
+  // Regenerate vocabulary with the same parameters as the last request
+  Future<void> regenerateVocabulary() async {
+    print('🔄 Regenerate Debug: Starting regeneration...');
+    
+    // Check if we have a single topic request
+    if (_currentRequest != null) {
+      print('🔄 Regenerate Debug: Using single topic request');
+      print('🔄 Regenerate Debug: _currentRequest parameters:');
+      print('  - topic: ${_currentRequest!.topic}');
+      print('  - vocabPerBatch: ${_currentRequest!.vocabPerBatch}');
+      print('  - phrasalVerbsPerBatch: ${_currentRequest!.phrasalVerbsPerBatch}');
+      print('  - idiomsPerBatch: ${_currentRequest!.idiomsPerBatch}');
+      print('  - Total: ${_currentRequest!.vocabPerBatch + _currentRequest!.phrasalVerbsPerBatch + _currentRequest!.idiomsPerBatch}');
+      
+      // Clear current vocabulary items but keep the request
+      _vocabularyItems = [];
+      _error = null;
+      notifyListeners();
+
+      // Regenerate with the same request
+      await generateVocabulary(_currentRequest!);
+      return;
+    }
+
+    // Check if we have multiple topics parameters
+    if (_lastMultipleTopics != null && _lastMultipleLevel != null) {
+      print('🔄 Regenerate Debug: Using multiple topics parameters');
+      print('🔄 Regenerate Debug: Multiple topics parameters:');
+      print('  - topics: $_lastMultipleTopics');
+      print('  - vocabPerBatch: $_lastMultipleVocabPerBatch');
+      print('  - phrasalVerbsPerBatch: $_lastMultiplePhrasalVerbsPerBatch');
+      print('  - idiomsPerBatch: $_lastMultipleIdiomsPerBatch');
+      print('  - Total: ${(_lastMultipleVocabPerBatch ?? 0) + (_lastMultiplePhrasalVerbsPerBatch ?? 0) + (_lastMultipleIdiomsPerBatch ?? 0)}');
+      
+      // Clear current vocabulary items
+      _vocabularyItems = [];
+      _error = null;
+      notifyListeners();
+
+      // Regenerate with the same multiple topics parameters
+      await generateMultipleTopics(
+        topics: _lastMultipleTopics!,
+        level: _lastMultipleLevel!,
+        languageToLearn: _lastMultipleLanguageToLearn!,
+        learnersNativeLanguage: _lastMultipleLearnersNativeLanguage!,
+        vocabPerBatch: _lastMultipleVocabPerBatch!,
+        phrasalVerbsPerBatch: _lastMultiplePhrasalVerbsPerBatch!,
+        idiomsPerBatch: _lastMultipleIdiomsPerBatch!,
+        delaySeconds: _lastMultipleDelaySeconds!,
+        saveTopicList: _lastMultipleSaveTopicList!,
+        topicListName: _lastMultipleTopicListName,
+      );
+      return;
+    }
+
+    // No previous request found
+    print('🔄 Regenerate Debug: No previous request found');
+    print('🔄 Regenerate Debug: _currentRequest is null: ${_currentRequest == null}');
+    print('🔄 Regenerate Debug: _lastMultipleTopics is null: ${_lastMultipleTopics == null}');
+    print('🔄 Regenerate Debug: _lastMultipleLevel is null: ${_lastMultipleLevel == null}');
+    
+    _error = 'No previous request found to regenerate';
     notifyListeners();
   }
 
