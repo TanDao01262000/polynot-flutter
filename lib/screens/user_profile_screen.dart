@@ -41,8 +41,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           ttsProvider.loadSelectedVoiceId();
           
           // Load user plan information
-          if (userPlanProvider.currentUserId == null && userProvider.sessionToken != null) {
-            userPlanProvider.setCurrentUserId(userProvider.sessionToken!);
+          if (userPlanProvider.sessionToken == null && userProvider.sessionToken != null) {
+            userPlanProvider.setSessionToken(userProvider.sessionToken!, userProvider: userProvider);
           }
           userPlanProvider.loadUserPlan();
         }

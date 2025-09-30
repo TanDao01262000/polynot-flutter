@@ -199,7 +199,20 @@ class UserService {
           throw Exception('Null response from auth endpoint');
         }
         
-        return LoginResponse.fromJson(jsonData);
+        print('🔍 DEBUG: About to parse LoginResponse from JSON');
+        print('🔍 DEBUG: JSON keys: ${jsonData.keys.toList()}');
+        print('🔍 DEBUG: user data type: ${jsonData['user']?.runtimeType}');
+        print('🔍 DEBUG: access_token type: ${jsonData['access_token']?.runtimeType}');
+        
+        try {
+          final loginResponse = LoginResponse.fromJson(jsonData);
+          print('✅ DEBUG: LoginResponse parsed successfully');
+          return loginResponse;
+        } catch (e, stackTrace) {
+          print('🔴 ERROR parsing LoginResponse: $e');
+          print('🔴 Stack trace: $stackTrace');
+          rethrow;
+        }
       } else {
         print('ERROR: Authentication failed - ${response.statusCode}');
         print('Error Body: ${response.body}');

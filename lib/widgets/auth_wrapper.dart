@@ -39,7 +39,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           
           // Initialize UserPlanProvider first (needed for TTS premium checks)
           try {
-            userPlanProvider.setCurrentUserId(userProvider.sessionToken!);
+            userPlanProvider.setSessionToken(userProvider.sessionToken!, userProvider: userProvider);
             await userPlanProvider.loadUserPlan();
             print('📋 AuthWrapper: UserPlanProvider initialized successfully');
           } catch (e) {

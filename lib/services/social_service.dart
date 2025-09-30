@@ -6,6 +6,152 @@ import '../models/social_models.dart';
 class SocialService {
   static String get baseUrl => dotenv.env['LOCAL_API_ENDPOINT'] ?? 'http://localhost:8000';
 
+  // ===== SOCIAL DISCOVERY ENDPOINTS =====
+  
+  /// Discover users by search, level, or language
+  static Future<Map<String, dynamic>> discoverUsers({
+    String? search,
+    String? level,
+    String? language,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final params = <String, String>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
+      if (search != null && search.isNotEmpty) params['search'] = search;
+      if (level != null) params['level'] = level;
+      if (language != null) params['language'] = language;
+      
+      final uri = Uri.parse('$baseUrl/social/discover/users').replace(
+        queryParameters: params,
+      );
+      
+      print('🔍 Discover Users: $uri');
+      
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      
+      print('🔍 Discover Users Response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to discover users: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('🔍 Discover Users Error: $e');
+      rethrow;
+    }
+  }
+  
+  /// Get public feed (all public posts from all users)
+  static Future<Map<String, dynamic>> getPublicFeed({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/social/feed/public?page=$page&limit=$limit');
+      
+      print('📰 Public Feed: $uri');
+      
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      
+      print('📰 Public Feed Response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to get public feed: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('📰 Public Feed Error: $e');
+      rethrow;
+    }
+  }
+  
+  /// Get posts from a specific user
+  static Future<Map<String, dynamic>> getUserPosts(
+    String userName, {
+    String? currentUser,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final params = <String, String>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
+      if (currentUser != null) params['current_user'] = currentUser;
+      
+      final uri = Uri.parse('$baseUrl/social/users/$userName/posts').replace(
+        queryParameters: params,
+      );
+      
+      print('📝 User Posts: $uri');
+      
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      
+      print('📝 User Posts Response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to get user posts: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('📝 User Posts Error: $e');
+      rethrow;
+    }
+  }
+  
+  /// Get user's followers
+  static Future<Map<String, dynamic>> getFollowers(String userName) async {
+    try {
+      final uri = Uri.parse('$baseUrl/social/users/$userName/followers');
+      
+      print('👥 Get Followers: $uri');
+      
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      
+      print('👥 Get Followers Response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to get followers: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('👥 Get Followers Error: $e');
+      rethrow;
+    }
+  }
+  
+  /// Get users that a user is following
+  static Future<Map<String, dynamic>> getFollowing(String userName) async {
+    try {
+      final uri = Uri.parse('$baseUrl/social/users/$userName/following');
+      
+      print('👥 Get Following: $uri');
+      
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      
+      print('👥 Get Following Response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to get following: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('👥 Get Following Error: $e');
+      rethrow;
+    }
+  }
+  
+  // ===== POST MANAGEMENT ENDPOINTS =====
+  
   /// Create a new social post
   static Future<SocialPost> createPost(
     String userId,
@@ -370,6 +516,69 @@ class SocialService {
       }
     } catch (e) {
       print('👥 Following Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Update a social post
+  static Future<SocialPost> updatePost(
+    String postId,
+    String userName,
+    Map<String, dynamic> updates,
+  ) async {
+    try {
+      final uri = Uri.parse('$baseUrl/social/posts/$postId?user_name=$userName');
+
+      print('✏️ Updating post: $postId for user: $userName');
+
+      final response = await http.put(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(updates),
+      ).timeout(const Duration(seconds: 15));
+
+      print('✏️ Update Post Response: ${response.statusCode}');
+      print('✏️ Update Post Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        return SocialPost.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Failed to update post: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('✏️ Error updating post: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete a social post
+  static Future<bool> deletePost(
+    String postId,
+    String userName,
+  ) async {
+    try {
+      final uri = Uri.parse('$baseUrl/social/posts/$postId?user_name=$userName');
+
+      print('🗑️ Deleting post: $postId for user: $userName');
+
+      final response = await http.delete(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      print('🗑️ Delete Post Response: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        throw Exception('Failed to delete post: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('🗑️ Error deleting post: $e');
       rethrow;
     }
   }

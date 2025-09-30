@@ -37,7 +37,7 @@ class _SocialTabScreenState extends State<SocialTabScreen> {
             backgroundColor: Colors.white,
             elevation: 0,
           ),
-          floatingActionButton: FloatingActionButton(
+          floatingActionButton: FloatingActionButton.extended(
             onPressed: () async {
               final result = await Navigator.push(
                 context,
@@ -57,9 +57,18 @@ class _SocialTabScreenState extends State<SocialTabScreen> {
               }
             },
             backgroundColor: const Color(0xFF3498DB),
-            child: const Icon(
-              Icons.add,
-              color: Colors.white,
+            foregroundColor: Colors.white,
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            icon: const Icon(Icons.add),
+            label: const Text(
+              'Create Post',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
             ),
           ),
           body: NewsFeedScreen(
@@ -92,14 +101,23 @@ class _SocialTabScreenState extends State<SocialTabScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.pushNamed(context, '/login');
         },
         backgroundColor: const Color(0xFF3498DB),
-        child: const Icon(
-          Icons.add,
-          color: Colors.white,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        icon: const Icon(Icons.add),
+        label: const Text(
+          'Create Post',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
         ),
       ),
       body: Center(

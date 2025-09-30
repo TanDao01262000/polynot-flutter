@@ -10,12 +10,16 @@ class UserProvider with ChangeNotifier {
   User? _currentUser;
   UserProfile? _userProfile;
   UserStatistics? _userStatistics;
-  String? _sessionToken;
+  String? _sessionToken; // This is now the access_token
+  String? _refreshToken;
+  DateTime? _tokenExpiresAt;
   bool _isLoading = false;
   String? _error;
   
   // Token persistence keys
   static const String _tokenKey = 'user_session_token';
+  static const String _refreshTokenKey = 'user_refresh_token';
+  static const String _tokenExpiresKey = 'token_expires_at';
   static const String _userEmailKey = 'user_email';
   static const String _userDataKey = 'user_data';
   
@@ -158,12 +162,16 @@ class UserProvider with ChangeNotifier {
       
       final loginResponse = await UserService.authenticateUser(email, password);
       _currentUser = loginResponse.user;
-      _sessionToken = loginResponse.sessionToken;
+      _sessionToken = loginResponse.accessToken;  // Use accessToken instead of sessionToken
+      _refreshToken = loginResponse.refreshToken;  // Store refresh token
+      _tokenExpiresAt = loginResponse.expiresAt ?? DateTime.now().add(Duration(seconds: loginResponse.expiresIn));
       
-      // Save authentication data to persistent storage
-      await _saveAuthData(_sessionToken!, email, _currentUser!);
+      // Save authentication data to persistent storage (including refresh token)
+      await _saveAuthData(_sessionToken!, _refreshToken!, email, _currentUser!, _tokenExpiresAt!);
       
-      print('🔐 UserProvider: Session token stored: ${_sessionToken != null ? _sessionToken!.substring(0, 20) + "..." : "NULL"}');
+      print('🔐 UserProvider: Access token stored: ${_sessionToken != null ? _sessionToken!.substring(0, 20) + "..." : "NULL"}');
+      print('🔐 UserProvider: Refresh token stored: ${_refreshToken != null ? _refreshToken!.substring(0, 20) + "..." : "NULL"}');
+      print('🔐 UserProvider: Token expires at: $_tokenExpiresAt');
       _setLoading(false);
       notifyListeners();
       
@@ -254,6 +262,8 @@ class UserProvider with ChangeNotifier {
     _userProfile = null;
     _userStatistics = null;
     _sessionToken = null;
+    _refreshToken = null;
+    _tokenExpiresAt = null;
     _error = null;
     _isLoading = false;
     notifyListeners();
@@ -265,6 +275,99 @@ class UserProvider with ChangeNotifier {
   Future<void> handleTokenExpiration() async {
     print('🔐 Token expired, logging out user automatically');
     await logout();
+  }
+
+  // Refresh access token using refresh token
+  Future<bool> refreshAccessToken() async {
+    if (_refreshToken == null) {
+      print('🔄 No refresh token available, cannot refresh');
+      return false;
+    }
+
+    try {
+      print('🔄 Refreshing access token...');
+      
+      final response = await http.post(
+        Uri.parse('$_baseUrl/auth/refresh'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refresh_token': _refreshToken}),
+      ).timeout(const Duration(seconds: 10));
+
+      print('🔄 Refresh response status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        
+        // Update tokens
+        final newAccessToken = data['access_token'] ?? '';
+        final newRefreshToken = data['refresh_token'] ?? _refreshToken;
+        final expiresIn = data['expires_in'] ?? 3600;
+        final expiresAt = data['expires_at'] != null 
+            ? DateTime.parse(data['expires_at'])
+            : DateTime.now().add(Duration(seconds: expiresIn));
+        
+        _sessionToken = newAccessToken;
+        _refreshToken = newRefreshToken;
+        _tokenExpiresAt = expiresAt;
+        
+        // Save updated tokens to storage
+        if (_currentUser != null) {
+          final prefs = await SharedPreferences.getInstance();
+          final email = prefs.getString(_userEmailKey) ?? '';
+          await _saveAuthData(newAccessToken, newRefreshToken!, email, _currentUser!, expiresAt);
+        }
+        
+        print('✅ Token refreshed successfully');
+        print('🔄 New access token: ${newAccessToken.substring(0, 20)}...');
+        print('🔄 Token expires at: $expiresAt');
+        
+        notifyListeners();
+        return true;
+      } else if (response.statusCode == 401) {
+        // Refresh token is expired or invalid
+        print('🔴 Refresh token expired, logging out');
+        await logout();
+        return false;
+      } else {
+        print('🔴 Token refresh failed: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('🔴 Error refreshing token: $e');
+      return false;
+    }
+  }
+
+  // Check if token needs refresh (expires in less than 5 minutes)
+  bool shouldRefreshToken() {
+    if (_tokenExpiresAt == null) return false;
+    
+    final now = DateTime.now();
+    final timeUntilExpiry = _tokenExpiresAt!.difference(now);
+    
+    // Refresh if token expires in less than 5 minutes
+    return timeUntilExpiry.inMinutes < 5;
+  }
+
+  // Get valid access token (auto-refresh if needed)
+  Future<String?> getValidAccessToken() async {
+    if (_sessionToken == null) {
+      print('🔐 No session token available');
+      return null;
+    }
+
+    // Check if token needs refresh
+    if (shouldRefreshToken()) {
+      print('🔄 Token expiring soon, refreshing proactively...');
+      final refreshed = await refreshAccessToken();
+      
+      if (!refreshed) {
+        print('🔴 Failed to refresh token');
+        return null;
+      }
+    }
+
+    return _sessionToken;
   }
 
   // Set current user (for testing or manual setting)
@@ -300,13 +403,15 @@ class UserProvider with ChangeNotifier {
   // ===== TOKEN PERSISTENCE METHODS =====
   
   // Save authentication data to persistent storage
-  Future<void> _saveAuthData(String token, String email, User user) async {
+  Future<void> _saveAuthData(String accessToken, String refreshToken, String email, User user, DateTime expiresAt) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_tokenKey, token);
+      await prefs.setString(_tokenKey, accessToken);
+      await prefs.setString(_refreshTokenKey, refreshToken);
+      await prefs.setString(_tokenExpiresKey, expiresAt.toIso8601String());
       await prefs.setString(_userEmailKey, email);
       await prefs.setString(_userDataKey, jsonEncode(user.toJson()));
-      print('🔐 Auth data saved to persistent storage');
+      print('🔐 Auth data saved to persistent storage (access + refresh tokens)');
     } catch (e) {
       print('🔐 Failed to save auth data: $e');
     }
@@ -317,14 +422,20 @@ class UserProvider with ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString(_tokenKey);
+      final refreshToken = prefs.getString(_refreshTokenKey);
+      final expiresAtString = prefs.getString(_tokenExpiresKey);
       final email = prefs.getString(_userEmailKey);
       final userDataString = prefs.getString(_userDataKey);
 
       if (token != null && email != null && userDataString != null) {
         print('🔐 Found stored auth data, attempting auto-login...');
         
-        // Set the token and user data
+        // Set tokens and expiration
         _sessionToken = token;
+        _refreshToken = refreshToken;
+        if (expiresAtString != null) {
+          _tokenExpiresAt = DateTime.parse(expiresAtString);
+        }
         
         // Parse and set user data
         try {
@@ -336,7 +447,9 @@ class UserProvider with ChangeNotifier {
           return false;
         }
         
-        print('🔐 Stored token found: ${token.substring(0, 20)}...');
+        print('🔐 Stored access token found: ${token.substring(0, 20)}...');
+        print('🔐 Stored refresh token found: ${refreshToken != null ? refreshToken.substring(0, 20) + "..." : "NULL"}');
+        print('🔐 Token expires at: $_tokenExpiresAt');
         
         return true;
       } else {
@@ -354,6 +467,8 @@ class UserProvider with ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_tokenKey);
+      await prefs.remove(_refreshTokenKey);
+      await prefs.remove(_tokenExpiresKey);
       await prefs.remove(_userEmailKey);
       await prefs.remove(_userDataKey);
       print('🔐 Auth data cleared from persistent storage');

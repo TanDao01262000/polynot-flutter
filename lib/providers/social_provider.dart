@@ -187,6 +187,48 @@ class SocialProvider with ChangeNotifier {
     }
   }
 
+  // Update post
+  Future<void> updatePost({
+    required String postId,
+    required String userName,
+    String? title,
+    String? content,
+    String? visibility,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      print('✏️ Updating post: $postId for user: $userName');
+      
+      final updates = <String, dynamic>{};
+      if (title != null) updates['title'] = title;
+      if (content != null) updates['content'] = content;
+      if (visibility != null) updates['visibility'] = visibility;
+      if (metadata != null) updates['metadata'] = metadata;
+      
+      await SocialService.updatePost(postId, userName, updates);
+      print('✏️ Post updated successfully');
+    } catch (e) {
+      print('✏️ Error updating post: $e');
+      rethrow;
+    }
+  }
+
+  // Delete post
+  Future<void> deletePost({
+    required String postId,
+    required String userName,
+  }) async {
+    try {
+      print('🗑️ Deleting post: $postId for user: $userName');
+      
+      await SocialService.deletePost(postId, userName);
+      print('🗑️ Post deleted successfully');
+    } catch (e) {
+      print('🗑️ Error deleting post: $e');
+      rethrow;
+    }
+  }
+
   // Load posts
   Future<void> loadPosts({int limit = 20}) async {
     _isLoadingPosts = true;

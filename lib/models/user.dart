@@ -50,35 +50,56 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
-    return User(
-      id: json['id'],
-      userName: json['user_name'],
-      userLevel: json['user_level'],
-      targetLanguage: json['target_language'],
-      email: json['email'],
-      firstName: json['first_name'],
-      lastName: json['last_name'],
-      nativeLanguage: json['native_language'],
-      country: json['country'],
-      interests: json['interests'],
-      proficiencyLevel: json['proficiency_level'],
-      bio: json['bio'],
-      learningGoals: json['learning_goals'],
-      preferredTopics: json['preferred_topics'],
-      studyTimePreference: json['study_time_preference'],
-      avatarUrl: json['avatar_url'],
-      isActive: json['is_active'] ?? true,
-      lastLogin: json['last_login'] != null 
-          ? DateTime.parse(json['last_login']) 
-          : null,
-      totalConversations: json['total_conversations'] ?? 0,
-      totalMessages: json['total_messages'] ?? 0,
-      streakDays: json['streak_days'] ?? 0,
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: json['updated_at'] != null 
-          ? DateTime.parse(json['updated_at']) 
-          : null,
-    );
+    print('🔍 User.fromJson: Parsing user data');
+    print('🔍 User.fromJson: JSON keys: ${json.keys.toList()}');
+    
+    // Helper function to safely parse int values
+    int _parseInt(dynamic value, int defaultValue, String fieldName) {
+      print('🔍 Parsing $fieldName: value=$value, type=${value?.runtimeType}');
+      if (value == null) return defaultValue;
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value) ?? defaultValue;
+      print('⚠️ $fieldName: unexpected type ${value.runtimeType}, using default');
+      return defaultValue;
+    }
+
+    try {
+      final user = User(
+        id: json['id']?.toString() ?? '',
+        userName: json['user_name']?.toString() ?? '',
+        userLevel: json['user_level']?.toString() ?? '',
+        targetLanguage: json['target_language']?.toString(),
+        email: json['email']?.toString() ?? '',
+        firstName: json['first_name']?.toString(),
+        lastName: json['last_name']?.toString(),
+        nativeLanguage: json['native_language']?.toString(),
+        country: json['country']?.toString(),
+        interests: json['interests']?.toString(),
+        proficiencyLevel: json['proficiency_level']?.toString(),
+        bio: json['bio']?.toString(),
+        learningGoals: json['learning_goals']?.toString(),
+        preferredTopics: json['preferred_topics']?.toString(),
+        studyTimePreference: json['study_time_preference']?.toString(),
+        avatarUrl: json['avatar_url']?.toString(),
+        isActive: json['is_active'] ?? true,
+        lastLogin: json['last_login'] != null 
+            ? DateTime.parse(json['last_login']) 
+            : null,
+        totalConversations: _parseInt(json['total_conversations'], 0, 'totalConversations'),
+        totalMessages: _parseInt(json['total_messages'], 0, 'totalMessages'),
+        streakDays: _parseInt(json['streak_days'], 0, 'streakDays'),
+        createdAt: DateTime.parse(json['created_at']),
+        updatedAt: json['updated_at'] != null 
+            ? DateTime.parse(json['updated_at']) 
+            : null,
+      );
+      print('✅ User.fromJson: User parsed successfully');
+      return user;
+    } catch (e, stackTrace) {
+      print('🔴 User.fromJson ERROR: $e');
+      print('🔴 Stack trace: $stackTrace');
+      rethrow;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -300,27 +321,85 @@ class UserLevelUpdateRequest {
 
 class LoginResponse {
   final User user;
-  final String sessionToken;
+  final String accessToken;
+  final String refreshToken;
+  final String tokenType;
+  final int expiresIn;
+  final DateTime? expiresAt;
   final int streakDays;
   final DateTime lastLogin;
 
   LoginResponse({
     required this.user,
-    required this.sessionToken,
+    required this.accessToken,
+    required this.refreshToken,
+    this.tokenType = 'Bearer',
+    required this.expiresIn,
+    this.expiresAt,
     required this.streakDays,
     required this.lastLogin,
   });
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
+    // Parse expires_in safely (can be int or String)
+    int expiresIn = 3600; // Default 1 hour
+    if (json['expires_in'] != null) {
+      if (json['expires_in'] is int) {
+        expiresIn = json['expires_in'];
+      } else if (json['expires_in'] is String) {
+        expiresIn = int.tryParse(json['expires_in']) ?? 3600;
+      }
+    }
+    
+    // Parse streak_days safely (can be int or String)
+    int streakDays = 0;
+    if (json['streak_days'] != null) {
+      if (json['streak_days'] is int) {
+        streakDays = json['streak_days'];
+      } else if (json['streak_days'] is String) {
+        streakDays = int.tryParse(json['streak_days']) ?? 0;
+      }
+    } else if (json['user'] != null && json['user']['streak_days'] != null) {
+      if (json['user']['streak_days'] is int) {
+        streakDays = json['user']['streak_days'];
+      } else if (json['user']['streak_days'] is String) {
+        streakDays = int.tryParse(json['user']['streak_days'] as String) ?? 0;
+      }
+    }
+    
+    // Helper to parse DateTime from either String or int (Unix timestamp)
+    DateTime? parseDateTime(dynamic value) {
+      if (value == null) return null;
+      if (value is String) {
+        try {
+          return DateTime.parse(value);
+        } catch (e) {
+          print('⚠️ Failed to parse DateTime from String: $value');
+          return null;
+        }
+      }
+      if (value is int) {
+        // Unix timestamp (seconds since epoch)
+        return DateTime.fromMillisecondsSinceEpoch(value * 1000);
+      }
+      print('⚠️ Unexpected DateTime type: ${value.runtimeType}');
+      return null;
+    }
+
     return LoginResponse(
       user: User.fromJson(json['user']),
-      sessionToken: json['access_token'] ?? json['session_token'] ?? '',
-      streakDays: json['streak_days'] ?? json['user']['streak_days'] ?? 0,
-      lastLogin: json['last_login'] != null 
-          ? DateTime.parse(json['last_login'])
-          : (json['user']['last_login'] != null 
-              ? DateTime.parse(json['user']['last_login'])
-              : DateTime.now()),
+      accessToken: json['access_token'] ?? json['session_token'] ?? '',
+      refreshToken: json['refresh_token'] ?? '',
+      tokenType: json['token_type'] ?? 'Bearer',
+      expiresIn: expiresIn,
+      expiresAt: parseDateTime(json['expires_at']),
+      streakDays: streakDays,
+      lastLogin: parseDateTime(json['last_login']) 
+          ?? parseDateTime(json['user']?['last_login'])
+          ?? DateTime.now(),
     );
   }
+
+  // For backward compatibility
+  String get sessionToken => accessToken;
 }

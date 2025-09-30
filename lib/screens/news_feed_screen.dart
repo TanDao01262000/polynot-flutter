@@ -82,6 +82,8 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       if (userProvider.isLoggedIn && userProvider.currentUser != null) {
         print('📰 NewsFeedScreen: Using user ID: ${userProvider.currentUser!.id}');
+        print('📰 NewsFeedScreen: User name: ${userProvider.currentUser!.userName}');
+        print('📰 NewsFeedScreen: User ID type: ${userProvider.currentUser!.id.runtimeType}');
         final posts = await SocialService.getNewsFeed(
           userProvider.currentUser!.id,
           page: _currentPage,
@@ -138,8 +140,9 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       if (userProvider.isLoggedIn && userProvider.currentUser != null) {
         final nextPage = _currentPage + 1;
+        print('📰 NewsFeedScreen: Loading more feed for user ID: ${userProvider.currentUser!.id}');
         final newPosts = await SocialService.getNewsFeed(
-          userProvider.currentUser!.userName,
+          userProvider.currentUser!.id,
           page: nextPage,
           limit: 20,
         );
@@ -297,7 +300,7 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
       color: const Color(0xFF3498DB),
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 80), // Add bottom padding for FAB
         itemCount: _posts.length + (_isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index >= _posts.length) {
@@ -500,14 +503,44 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
           ),
         ),
         const Spacer(),
-        IconButton(
-          icon: Icon(
-            Icons.share_outlined,
-            color: const Color(0xFF7F8C8D),
-            size: 20,
-          ),
-          onPressed: () {
-            // TODO: Implement share functionality
+        // Show edit/delete buttons only for user's own posts
+        Consumer<UserProvider>(
+          builder: (context, userProvider, child) {
+            if (userProvider.isLoggedIn && 
+                userProvider.currentUser != null && 
+                post.userName == userProvider.currentUser!.userName) {
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.edit_outlined,
+                      color: Color(0xFF3498DB),
+                      size: 20,
+                    ),
+                    onPressed: () => _editPost(post),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: Color(0xFFE74C3C),
+                      size: 20,
+                    ),
+                    onPressed: () => _deletePost(post),
+                  ),
+                ],
+              );
+            }
+            return IconButton(
+              icon: const Icon(
+                Icons.share_outlined,
+                color: Color(0xFF7F8C8D),
+                size: 20,
+              ),
+              onPressed: () {
+                // TODO: Implement share functionality
+              },
+            );
           },
         ),
       ],
@@ -529,7 +562,7 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
 
       final result = await SocialService.toggleLike(
         post.id,
-        userProvider.currentUser!.userName,
+        userProvider.currentUser!.id,
       );
 
       // Update the post in the local list
@@ -574,6 +607,137 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
           backgroundColor: const Color(0xFFE74C3C),
         ),
       );
+    }
+  }
+
+  Future<void> _editPost(SocialPost post) async {
+    // For now, show a simple edit dialog
+    final titleController = TextEditingController(text: post.title);
+    final contentController = TextEditingController(text: post.content);
+    
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Post'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(
+                labelText: 'Title',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: contentController,
+              decoration: const InputDecoration(
+                labelText: 'Content',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      try {
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        if (userProvider.isLoggedIn && userProvider.currentUser != null) {
+          await SocialService.updatePost(
+            post.id,
+            userProvider.currentUser!.userName,
+            {
+              'title': titleController.text.trim(),
+              'content': contentController.text.trim(),
+            },
+          );
+          
+          // Refresh the feed to show updated post
+          _loadFeed();
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Post updated successfully'),
+              backgroundColor: Color(0xFF27AE60),
+            ),
+          );
+        }
+      } catch (e) {
+        print('Error updating post: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating post: $e'),
+            backgroundColor: const Color(0xFFE74C3C),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deletePost(SocialPost post) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Post'),
+        content: const Text('Are you sure you want to delete this post? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFE74C3C),
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        if (userProvider.isLoggedIn && userProvider.currentUser != null) {
+          await SocialService.deletePost(post.id, userProvider.currentUser!.userName);
+          
+          // Remove post from local state
+          setState(() {
+            _posts.removeWhere((p) => p.id == post.id);
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Post deleted successfully'),
+              backgroundColor: Color(0xFF27AE60),
+            ),
+          );
+        }
+      } catch (e) {
+        print('Error deleting post: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting post: $e'),
+            backgroundColor: const Color(0xFFE74C3C),
+          ),
+        );
+      }
     }
   }
 

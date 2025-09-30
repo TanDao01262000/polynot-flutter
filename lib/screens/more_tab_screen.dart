@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
-import 'advanced_analytics_screen.dart';
 import 'achievements_screen.dart';
 import 'leaderboard_screen.dart';
 import 'study_analytics_screen.dart';
@@ -268,52 +267,6 @@ class MoreTabScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => const StudyAnalyticsScreen(),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildFeatureCard(
-                context: context,
-                title: 'Advanced Analytics',
-                subtitle: 'Detailed insights',
-                icon: Icons.trending_up,
-                color: const Color(0xFFFDF2E9),
-                iconColor: const Color(0xFFE67E22),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AdvancedAnalyticsScreen(),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-        
-        const SizedBox(height: 16),
-        
-        // Profile Row
-        Row(
-          children: [
-            Expanded(
-              child: _buildFeatureCard(
-                context: context,
-                title: 'Profile',
-                subtitle: 'View your profile',
-                icon: Icons.person,
-                color: const Color(0xFFE8F8F5),
-                iconColor: const Color(0xFF1ABC9C),
-                onTap: () {
-                  // TODO: Implement profile screen
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Profile feature coming soon!'),
-                      backgroundColor: Color(0xFF3498DB),
                     ),
                   );
                 },
