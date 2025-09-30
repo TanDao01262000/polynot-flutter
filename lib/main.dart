@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
-import 'screens/home_screen.dart';
 import 'screens/user_login_screen.dart';
 import 'screens/user_registration_screen.dart';
 import 'services/partner_service.dart';
@@ -10,6 +9,9 @@ import 'providers/user_provider.dart';
 import 'providers/flashcard_provider.dart';
 import 'providers/tts_provider.dart';
 import 'providers/user_plan_provider.dart';
+import 'providers/social_provider.dart';
+import 'providers/smart_feed_provider.dart';
+import 'providers/study_analytics_provider.dart';
 import 'screens/vocabulary_list_screen.dart';
 import 'screens/flashcard_screens.dart';
 import 'screens/vocabulary_tts_demo_screen.dart';
@@ -47,6 +49,9 @@ class MyApp extends StatelessWidget{
         ChangeNotifierProvider(create: (_) => FlashcardProvider()),
         ChangeNotifierProvider(create: (_) => TTSProvider()),
         ChangeNotifierProvider(create: (_) => UserPlanProvider()),
+        ChangeNotifierProvider(create: (_) => SocialProvider()),
+        ChangeNotifierProvider(create: (_) => SmartFeedProvider()),
+        ChangeNotifierProvider(create: (_) => StudyAnalyticsProvider()),
       ],
       child: MaterialApp(
         title: "Polynot",
