@@ -4,6 +4,8 @@ import '../providers/user_provider.dart';
 import 'achievements_screen.dart';
 import 'leaderboard_screen.dart';
 import 'study_analytics_screen.dart';
+import 'user_discovery_screen.dart';
+import 'public_feed_screen.dart';
 
 class MoreTabScreen extends StatelessWidget {
   const MoreTabScreen({super.key});
@@ -197,7 +199,7 @@ class MoreTabScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Learning Tools',
+          'Social Features',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -206,7 +208,52 @@ class MoreTabScreen extends StatelessWidget {
         ),
         const SizedBox(height: 20),
         
-        // Social Features Row
+        // Discovery Row
+        Row(
+          children: [
+            Expanded(
+              child: _buildFeatureCard(
+                context: context,
+                title: 'Discover Users',
+                subtitle: 'Find learners',
+                icon: Icons.people_outline,
+                color: const Color(0xFFE8F4FD),
+                iconColor: const Color(0xFF3498DB),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UserDiscoveryScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildFeatureCard(
+                context: context,
+                title: 'Public Feed',
+                subtitle: 'All posts',
+                icon: Icons.public,
+                color: const Color(0xFFFDF2E9),
+                iconColor: const Color(0xFFE67E22),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PublicFeedScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Achievements Row
         Row(
           children: [
             Expanded(

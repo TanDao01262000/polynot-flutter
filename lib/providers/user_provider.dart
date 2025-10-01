@@ -297,14 +297,40 @@ class UserProvider with ChangeNotifier {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        print('🔄 Refresh response body: $data');
         
-        // Update tokens
-        final newAccessToken = data['access_token'] ?? '';
-        final newRefreshToken = data['refresh_token'] ?? _refreshToken;
-        final expiresIn = data['expires_in'] ?? 3600;
-        final expiresAt = data['expires_at'] != null 
-            ? DateTime.parse(data['expires_at'])
-            : DateTime.now().add(Duration(seconds: expiresIn));
+        // Update tokens with safe type conversion
+        final newAccessToken = data['access_token']?.toString() ?? '';
+        final newRefreshToken = data['refresh_token']?.toString() ?? _refreshToken;
+        
+        // Safe parsing of expires_in (can be int or string)
+        int expiresInSeconds = 3600;
+        if (data['expires_in'] != null) {
+          if (data['expires_in'] is int) {
+            expiresInSeconds = data['expires_in'];
+          } else if (data['expires_in'] is String) {
+            expiresInSeconds = int.tryParse(data['expires_in']) ?? 3600;
+          }
+        }
+        
+        // Safe parsing of expires_at (can be string or int timestamp)
+        DateTime expiresAt;
+        if (data['expires_at'] != null) {
+          if (data['expires_at'] is String) {
+            try {
+              expiresAt = DateTime.parse(data['expires_at']);
+            } catch (e) {
+              print('🔄 Failed to parse expires_at as string, using expires_in');
+              expiresAt = DateTime.now().add(Duration(seconds: expiresInSeconds));
+            }
+          } else if (data['expires_at'] is int) {
+            expiresAt = DateTime.fromMillisecondsSinceEpoch(data['expires_at'] * 1000);
+          } else {
+            expiresAt = DateTime.now().add(Duration(seconds: expiresInSeconds));
+          }
+        } else {
+          expiresAt = DateTime.now().add(Duration(seconds: expiresInSeconds));
+        }
         
         _sessionToken = newAccessToken;
         _refreshToken = newRefreshToken;
@@ -351,20 +377,34 @@ class UserProvider with ChangeNotifier {
 
   // Get valid access token (auto-refresh if needed)
   Future<String?> getValidAccessToken() async {
+    print('🔐 UserProvider.getValidAccessToken() called');
+    
     if (_sessionToken == null) {
       print('🔐 No session token available');
       return null;
     }
 
+    print('🔐 Current token: ${_sessionToken!.substring(0, 20)}...');
+    print('🔐 Token expires at: $_tokenExpiresAt');
+    print('🔐 Current time: ${DateTime.now()}');
+
     // Check if token needs refresh
     if (shouldRefreshToken()) {
-      print('🔄 Token expiring soon, refreshing proactively...');
+      final timeUntilExpiry = _tokenExpiresAt!.difference(DateTime.now());
+      print('🔄 Token expiring soon (in ${timeUntilExpiry.inMinutes} minutes), refreshing proactively...');
       final refreshed = await refreshAccessToken();
       
       if (!refreshed) {
         print('🔴 Failed to refresh token');
         return null;
       }
+      
+      print('✅ Token refreshed, new token: ${_sessionToken!.substring(0, 20)}...');
+    } else {
+      final timeUntilExpiry = _tokenExpiresAt != null 
+        ? _tokenExpiresAt!.difference(DateTime.now()).inMinutes 
+        : -1;
+      print('✅ Token still valid (expires in $timeUntilExpiry minutes)');
     }
 
     return _sessionToken;

@@ -54,8 +54,11 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
     final ttsProvider = Provider.of<TTSProvider>(context, listen: false);
     
     if (userProvider.currentUser != null && userProvider.sessionToken != null) {
-      print('🔐 VocabularyListScreen: Setting session token from user provider');
-      vocabProvider.setSessionToken(userProvider.sessionToken!);
+      print('🔐 VocabularyListScreen: Setting session token WITH UserProvider for auto-refresh');
+      vocabProvider.setSessionToken(
+        userProvider.sessionToken!,
+        userProvider: userProvider,  // ← Pass UserProvider for auto token refresh!
+      );
       ttsProvider.setCurrentUserId(userProvider.sessionToken!);
       await vocabProvider.getVocabularyLists();
     } else {

@@ -254,14 +254,15 @@ class SocialService {
   }
 
   /// Toggle follow on a user
+  /// Follow/unfollow a user (uses user_name, not user_id)
   static Future<Map<String, dynamic>> toggleFollow(
-    String currentUserId,
-    String targetUserId,
+    String targetUserName,
+    String currentUserName,
   ) async {
     try {
-      final uri = Uri.parse('$baseUrl/social/users/$targetUserId/follow?user_id=$currentUserId');
+      final uri = Uri.parse('$baseUrl/social/users/$targetUserName/follow?user_name=$currentUserName');
 
-      print('👥 Toggling follow for user: $targetUserId');
+      print('👥 Toggling follow for user: $targetUserName by $currentUserName');
 
       final response = await http.post(
         uri,

@@ -32,7 +32,10 @@ class _VocabularyResultScreenState extends State<VocabularyResultScreen> {
     final vocabProvider = Provider.of<VocabularyProvider>(context, listen: false);
     
     if (userProvider.currentUser != null && userProvider.sessionToken != null) {
-      vocabProvider.setSessionToken(userProvider.sessionToken!);
+      vocabProvider.setSessionToken(
+        userProvider.sessionToken!,
+        userProvider: userProvider,  // ← Pass UserProvider for auto token refresh!
+      );
     }
     
     _hasInitialized = true;

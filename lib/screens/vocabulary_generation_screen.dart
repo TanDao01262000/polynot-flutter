@@ -67,8 +67,11 @@ class _VocabularyGenerationScreenState extends State<VocabularyGenerationScreen>
     print('🔐 VocabGenScreen: UserProvider has token: ${userProvider.sessionToken != null}');
     
     if (userProvider.currentUser != null && userProvider.sessionToken != null) {
-      print('🔐 VocabGenScreen: Setting session token in VocabProvider');
-      vocabProvider.setSessionToken(userProvider.sessionToken!);
+      print('🔐 VocabGenScreen: Setting session token in VocabProvider WITH UserProvider for auto-refresh');
+      vocabProvider.setSessionToken(
+        userProvider.sessionToken!,
+        userProvider: userProvider,  // ← Pass UserProvider for auto token refresh!
+      );
       
       // Also ensure it's in SharedPreferences for VocabularyService
       try {
