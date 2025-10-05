@@ -52,4 +52,4 @@ app.*.map.json
 # .env.production
 
 /test/
-*/docs/
+/docs/
