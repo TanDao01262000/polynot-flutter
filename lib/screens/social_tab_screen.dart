@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import 'create_post_screen.dart';
-import 'news_feed_screen.dart';
+import 'personalized_feed_screen.dart';
+import 'public_feed_screen.dart';
+import 'study_together_screen.dart';
 
 class SocialTabScreen extends StatefulWidget {
   const SocialTabScreen({super.key});
@@ -11,9 +13,22 @@ class SocialTabScreen extends StatefulWidget {
   State<SocialTabScreen> createState() => _SocialTabScreenState();
 }
 
-class _SocialTabScreenState extends State<SocialTabScreen> {
+class _SocialTabScreenState extends State<SocialTabScreen> with TickerProviderStateMixin {
   int _refreshKey = 0;
   bool _shouldRefreshFeed = false;
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +51,34 @@ class _SocialTabScreenState extends State<SocialTabScreen> {
             centerTitle: true,
             backgroundColor: Colors.white,
             elevation: 0,
+            bottom: TabBar(
+              controller: _tabController,
+              indicatorColor: const Color(0xFF3498DB),
+              labelColor: const Color(0xFF3498DB),
+              unselectedLabelColor: const Color(0xFF7F8C8D),
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+              ),
+              tabs: const [
+                Tab(
+                  icon: Icon(Icons.person, size: 20),
+                  text: 'Personalized',
+                ),
+                Tab(
+                  icon: Icon(Icons.public, size: 20),
+                  text: 'Public',
+                ),
+                Tab(
+                  icon: Icon(Icons.school, size: 20),
+                  text: 'Study Together',
+                ),
+              ],
+            ),
           ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () async {
@@ -45,10 +88,10 @@ class _SocialTabScreenState extends State<SocialTabScreen> {
                   builder: (context) => const CreatePostScreen(),
                 ),
               );
-              // If a post was created successfully, refresh the news feed
+              // If a post was created successfully, refresh both feeds
               if (result == true) {
-                print('🔄 SocialTabScreen: Post created successfully, refreshing feed...');
-                // Trigger a refresh by changing the key to force NewsFeedScreen rebuild
+                print('🔄 SocialTabScreen: Post created successfully, refreshing feeds...');
+                // Trigger a refresh by changing the key to force feed screens rebuild
                 setState(() {
                   _refreshKey++;
                   _shouldRefreshFeed = true;
@@ -71,14 +114,40 @@ class _SocialTabScreenState extends State<SocialTabScreen> {
               ),
             ),
           ),
-          body: NewsFeedScreen(
-            key: ValueKey(_refreshKey),
-            shouldRefresh: _shouldRefreshFeed,
-            onRefreshComplete: () {
-              setState(() {
-                _shouldRefreshFeed = false;
-              });
-            },
+          body: TabBarView(
+            controller: _tabController,
+            children: [
+              // Personalized Feed Tab
+              PersonalizedFeedScreen(
+                key: ValueKey('personalized_$_refreshKey'),
+                shouldRefresh: _shouldRefreshFeed,
+                onRefreshComplete: () {
+                  setState(() {
+                    _shouldRefreshFeed = false;
+                  });
+                },
+              ),
+              // Public Feed Tab
+              PublicFeedScreen(
+                key: ValueKey('public_$_refreshKey'),
+                shouldRefresh: _shouldRefreshFeed,
+                onRefreshComplete: () {
+                  setState(() {
+                    _shouldRefreshFeed = false;
+                  });
+                },
+              ),
+              // Study Together Tab
+              StudyTogetherScreen(
+                key: ValueKey('study_together_$_refreshKey'),
+                shouldRefresh: _shouldRefreshFeed,
+                onRefreshComplete: () {
+                  setState(() {
+                    _shouldRefreshFeed = false;
+                  });
+                },
+              ),
+            ],
           ),
         );
       },

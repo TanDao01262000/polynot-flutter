@@ -25,7 +25,38 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     
     if (userProvider.isLoggedIn && userProvider.currentUser != null) {
-      await socialProvider.loadAchievements(userProvider.currentUser!.userName);
+      await socialProvider.loadAchievements(userProvider.currentUser!.id);
+    }
+  }
+
+  Future<void> _checkAchievements() async {
+    final socialProvider = Provider.of<SocialProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    
+    if (userProvider.isLoggedIn && userProvider.currentUser != null) {
+      try {
+        await socialProvider.checkAchievements(userProvider.currentUser!.id);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Achievement check completed!'),
+              backgroundColor: Color(0xFF27AE60),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to check achievements: $e'),
+              backgroundColor: const Color(0xFFE74C3C),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -54,6 +85,18 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
               icon: const Icon(Icons.arrow_back, color: Color(0xFF2C3E50)),
               onPressed: () => Navigator.pop(context),
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.check_circle, color: Color(0xFF3498DB)),
+                onPressed: _checkAchievements,
+                tooltip: 'Check for New Achievements',
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh, color: Color(0xFF3498DB)),
+                onPressed: _loadAchievements,
+                tooltip: 'Refresh',
+              ),
+            ],
           ),
           body: socialProvider.isLoadingAchievements
               ? const Center(

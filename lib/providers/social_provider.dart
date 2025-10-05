@@ -13,6 +13,11 @@ class SocialProvider with ChangeNotifier {
   List<SocialAchievement> _achievements = [];
   bool _isLoadingAchievements = false;
   String? _achievementsError;
+  
+  // Available Achievements
+  List<AvailableAchievement> _availableAchievements = [];
+  bool _isLoadingAvailableAchievements = false;
+  String? _availableAchievementsError;
 
   // Leaderboard
   List<LeaderboardEntry> _leaderboard = [];
@@ -38,6 +43,10 @@ class SocialProvider with ChangeNotifier {
   List<SocialAchievement> get achievements => _achievements;
   bool get isLoadingAchievements => _isLoadingAchievements;
   String? get achievementsError => _achievementsError;
+  
+  List<AvailableAchievement> get availableAchievements => _availableAchievements;
+  bool get isLoadingAvailableAchievements => _isLoadingAvailableAchievements;
+  String? get availableAchievementsError => _availableAchievementsError;
 
   List<LeaderboardEntry> get leaderboard => _leaderboard;
   bool get isLoadingLeaderboard => _isLoadingLeaderboard;
@@ -56,42 +65,61 @@ class SocialProvider with ChangeNotifier {
   String? get trendingWordsError => _trendingWordsError;
 
   // Load achievements
-  Future<void> loadAchievements(String userName) async {
+  Future<void> loadAchievements(String userId) async {
     _isLoadingAchievements = true;
     _achievementsError = null;
     notifyListeners();
 
     try {
-      // TODO: Implement actual API call
-      await Future.delayed(const Duration(seconds: 1)); // Simulate API call
-      
-      // Mock data for now
-      _achievements = [
-        SocialAchievement(
-          id: '1',
-          achievementId: 'first_steps',
-          achievementName: 'First Steps',
-          description: 'Complete your first vocabulary lesson',
-          pointsEarned: 50,
-          icon: '🎯',
-          unlockedAt: DateTime.now().subtract(const Duration(days: 1)),
-        ),
-        SocialAchievement(
-          id: '2',
-          achievementId: 'vocab_master',
-          achievementName: 'Vocabulary Master',
-          description: 'Learn 100 vocabulary words',
-          pointsEarned: 200,
-          icon: '📚',
-          unlockedAt: DateTime.now().subtract(const Duration(days: 3)),
-        ),
-      ];
+      final response = await SocialService.getUserAchievements(userId);
+      _achievements = response.achievements;
       
       _isLoadingAchievements = false;
       notifyListeners();
     } catch (e) {
+      print('Error loading achievements: $e');
       _achievementsError = e.toString();
       _isLoadingAchievements = false;
+      notifyListeners();
+    }
+  }
+
+  // Check achievements (manual trigger)
+  Future<void> checkAchievements(String userId) async {
+    _isLoadingAchievements = true;
+    _achievementsError = null;
+    notifyListeners();
+
+    try {
+      final response = await SocialService.checkUserAchievements(userId);
+      _achievements = response.achievements;
+      
+      _isLoadingAchievements = false;
+      notifyListeners();
+    } catch (e) {
+      print('Error checking achievements: $e');
+      _achievementsError = e.toString();
+      _isLoadingAchievements = false;
+      notifyListeners();
+    }
+  }
+
+  // Load available achievements
+  Future<void> loadAvailableAchievements() async {
+    _isLoadingAvailableAchievements = true;
+    _availableAchievementsError = null;
+    notifyListeners();
+
+    try {
+      final response = await SocialService.getAvailableAchievements();
+      _availableAchievements = response.achievements;
+      
+      _isLoadingAvailableAchievements = false;
+      notifyListeners();
+    } catch (e) {
+      print('Error loading available achievements: $e');
+      _availableAchievementsError = e.toString();
+      _isLoadingAvailableAchievements = false;
       notifyListeners();
     }
   }

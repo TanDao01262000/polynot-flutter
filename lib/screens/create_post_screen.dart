@@ -5,7 +5,12 @@ import '../providers/user_provider.dart';
 import '../models/social_models.dart';
 
 class CreatePostScreen extends StatefulWidget {
-  const CreatePostScreen({super.key});
+  final SocialPost? editPost;
+  
+  const CreatePostScreen({
+    super.key,
+    this.editPost,
+  });
 
   @override
   State<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -18,6 +23,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   String _selectedPostType = PostTypes.learningTip;
   String _selectedVisibility = PostVisibility.public;
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with edit data if editing
+    if (widget.editPost != null) {
+      _contentController.text = widget.editPost!.content;
+      _selectedPostType = widget.editPost!.postType;
+      _selectedVisibility = widget.editPost!.visibility;
+    }
+  }
 
   @override
   void dispose() {
@@ -37,24 +53,47 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       
       if (userProvider.isLoggedIn && userProvider.currentUser != null) {
-        print('📝 CreatePostScreen: Using user ID: ${userProvider.currentUser!.id}');
-        await socialProvider.createPost(
-          userId: userProvider.currentUser!.id,
-          postType: _selectedPostType,
-          content: _contentController.text.trim(),
-          language: userProvider.currentUser!.targetLanguage ?? 'English',
-          level: userProvider.currentUser!.userLevel,
-          metadata: _getMetadataForPostType(),
-        );
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Post shared successfully!'),
-              backgroundColor: Color(0xFF27AE60),
-            ),
+        if (widget.editPost != null) {
+          // Editing existing post
+          print('📝 EditPostScreen: Editing post ${widget.editPost!.id}');
+          await socialProvider.updatePost(
+            postId: widget.editPost!.id,
+            userName: userProvider.currentUser!.userName,
+            content: _contentController.text.trim(),
+            visibility: _selectedVisibility,
+            metadata: _getMetadataForPostType(),
           );
-          Navigator.pop(context, true); // Return true to indicate successful post creation
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Post updated successfully!'),
+                backgroundColor: Color(0xFF27AE60),
+              ),
+            );
+            Navigator.pop(context, true); // Return true to indicate successful post update
+          }
+        } else {
+          // Creating new post
+          print('📝 CreatePostScreen: Using user ID: ${userProvider.currentUser!.id}');
+          await socialProvider.createPost(
+            userId: userProvider.currentUser!.id,
+            postType: _selectedPostType,
+            content: _contentController.text.trim(),
+            language: userProvider.currentUser!.targetLanguage ?? 'English',
+            level: userProvider.currentUser!.userLevel,
+            metadata: _getMetadataForPostType(),
+          );
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Post shared successfully!'),
+                backgroundColor: Color(0xFF27AE60),
+              ),
+            );
+            Navigator.pop(context, true); // Return true to indicate successful post creation
+          }
         }
       } else {
         if (mounted) {
@@ -111,9 +150,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         return Scaffold(
           backgroundColor: const Color(0xFFF8F9FA),
           appBar: AppBar(
-            title: const Text(
-              'Share Progress',
-              style: TextStyle(
+            title: Text(
+              widget.editPost != null ? 'Edit Post' : 'Share Progress',
+              style: const TextStyle(
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF2C3E50),
               ),
@@ -129,7 +168,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               TextButton(
                 onPressed: _isSubmitting ? null : _submitPost,
                 child: Text(
-                  'Share',
+                  widget.editPost != null ? 'Update' : 'Share',
                   style: TextStyle(
                     color: _isSubmitting ? const Color(0xFFBDC3C7) : const Color(0xFF3498DB),
                     fontWeight: FontWeight.w600,
@@ -538,8 +577,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : const Text(
-                'Share with Community',
+            : Text(
+                widget.editPost != null ? 'Update Post' : 'Share with Community',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,

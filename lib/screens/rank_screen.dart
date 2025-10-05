@@ -40,9 +40,9 @@ class _GamificationScreenState extends State<GamificationScreen>
     
     if (userProvider.isLoggedIn && userProvider.currentUser != null) {
       await Future.wait([
-        socialProvider.loadUserPoints(userProvider.currentUser!.userName),
-        socialProvider.loadAchievements(userProvider.currentUser!.userName),
-        socialProvider.loadLeaderboard(limit: 20),
+        // socialProvider.loadUserPoints(userProvider.currentUser!.userName), // TODO: Implement this method
+        socialProvider.loadAchievements(userProvider.currentUser!.id),
+        socialProvider.loadLeaderboard(userName: userProvider.currentUser!.userName, limit: 20),
       ]);
     }
   }

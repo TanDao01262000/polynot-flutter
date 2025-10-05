@@ -1,15 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/user_provider.dart';
 import '../services/social_service.dart';
 import '../models/social_models.dart';
+import '../widgets/error_handler.dart';
+import '../utils/date_utils.dart' as app_date_utils;
+import 'create_post_screen.dart';
+import 'user_profile_screen.dart';
 
 class PublicFeedScreen extends StatefulWidget {
-  const PublicFeedScreen({super.key});
+  final bool shouldRefresh;
+  final VoidCallback? onRefreshComplete;
+  
+  const PublicFeedScreen({
+    super.key,
+    this.shouldRefresh = false,
+    this.onRefreshComplete,
+  });
 
   @override
   State<PublicFeedScreen> createState() => _PublicFeedScreenState();
 }
 
 class _PublicFeedScreenState extends State<PublicFeedScreen> {
+  final ScrollController _scrollController = ScrollController();
   List<SocialPost> _posts = [];
   bool _isLoading = false;
   bool _isLoadingMore = false;
@@ -17,15 +31,22 @@ class _PublicFeedScreenState extends State<PublicFeedScreen> {
   int _currentPage = 1;
   bool _hasMoreData = true;
 
-  final ScrollController _scrollController = ScrollController();
-
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadFeed();
+      _loadPublicFeed();
     });
+  }
+
+  @override
+  void didUpdateWidget(PublicFeedScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.shouldRefresh && !oldWidget.shouldRefresh) {
+      _loadPublicFeed(refresh: true);
+      widget.onRefreshComplete?.call();
+    }
   }
 
   @override
@@ -35,31 +56,46 @@ class _PublicFeedScreenState extends State<PublicFeedScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
-      if (!_isLoadingMore && _hasMoreData) {
-        _loadMoreFeed();
-      }
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent * 0.8) {
+      _loadMorePublicFeed();
     }
   }
 
-  Future<void> _loadFeed() async {
+  Future<void> _loadPublicFeed({bool refresh = false}) async {
+    if (_isLoading) return;
+    
     setState(() {
       _isLoading = true;
       _error = null;
-      _currentPage = 1;
+      if (refresh) {
+        _currentPage = 1;
+        _hasMoreData = true;
+        _posts.clear();
+      }
     });
 
     try {
-      final result = await SocialService.getPublicFeed(page: 1, limit: 20);
-      
-      final postsData = result['posts'] as List<dynamic>;
-      final posts = postsData.map((json) => SocialPost.fromJson(json)).toList();
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      if (userProvider.isLoggedIn && userProvider.currentUser != null) {
+        // Load public posts from all users using the dedicated public feed endpoint
+        final feedResponse = await SocialService.getPublicFeed(
+          page: _currentPage,
+          limit: 20,
+        );
+        
+        // Parse the response
+        final postsData = feedResponse['posts'] as List<dynamic>? ?? [];
+        final posts = postsData.map((postJson) => SocialPost.fromJson(postJson as Map<String, dynamic>)).toList();
+        
+        setState(() {
+          _posts = posts;
+          _hasMoreData = feedResponse['has_next'] ?? false;
+          _isLoading = false;
+        });
 
-      setState(() {
-        _posts = posts;
-        _hasMoreData = result['has_next'] ?? false;
-        _isLoading = false;
-      });
+        print('🌍 Public feed loaded: ${_posts.length} posts');
+      }
     } catch (e) {
       print('Error loading public feed: $e');
       setState(() {
@@ -69,28 +105,35 @@ class _PublicFeedScreenState extends State<PublicFeedScreen> {
     }
   }
 
-  Future<void> _loadMoreFeed() async {
+  Future<void> _loadMorePublicFeed() async {
     if (_isLoadingMore || !_hasMoreData) return;
-
+    
     setState(() {
       _isLoadingMore = true;
     });
 
     try {
-      final nextPage = _currentPage + 1;
-      final result = await SocialService.getPublicFeed(page: nextPage, limit: 20);
-      
-      final postsData = result['posts'] as List<dynamic>;
-      final newPosts = postsData.map((json) => SocialPost.fromJson(json)).toList();
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      if (userProvider.isLoggedIn && userProvider.currentUser != null) {
+        final nextPage = _currentPage + 1;
+        final feedResponse = await SocialService.getPublicFeed(
+          page: nextPage,
+          limit: 20,
+        );
 
-      setState(() {
-        _posts.addAll(newPosts);
-        _currentPage = nextPage;
-        _hasMoreData = result['has_next'] ?? false;
-        _isLoadingMore = false;
-      });
+        // Parse the response
+        final postsData = feedResponse['posts'] as List<dynamic>? ?? [];
+        final newPosts = postsData.map((postJson) => SocialPost.fromJson(postJson as Map<String, dynamic>)).toList();
+        
+        setState(() {
+          _posts.addAll(newPosts);
+          _currentPage = nextPage;
+          _hasMoreData = feedResponse['has_next'] ?? false;
+          _isLoadingMore = false;
+        });
+      }
     } catch (e) {
-      print('Error loading more feed: $e');
+      print('Error loading more public feed: $e');
       setState(() {
         _isLoadingMore = false;
       });
@@ -99,25 +142,81 @@ class _PublicFeedScreenState extends State<PublicFeedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        title: const Text(
-          'Public Feed',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF2C3E50),
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF2C3E50)),
-      ),
-      body: _buildBody(),
+    return Consumer<UserProvider>(
+      builder: (context, userProvider, child) {
+        if (!userProvider.isLoggedIn) {
+          return _buildLoginPrompt();
+        }
+
+        return _buildFeedBody();
+      },
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildLoginPrompt() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F4FD),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(
+                Icons.public,
+                size: 64,
+                color: Color(0xFF3498DB),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Public Feed',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF2C3E50),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Login to see posts from the entire community.',
+              style: TextStyle(
+                fontSize: 16,
+                color: Color(0xFF7F8C8D),
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/login');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3498DB),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Login to Continue',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeedBody() {
     if (_isLoading && _posts.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(
@@ -127,19 +226,23 @@ class _PublicFeedScreenState extends State<PublicFeedScreen> {
     }
 
     if (_error != null && _posts.isEmpty) {
-      return _buildErrorState();
+      return ErrorHandler.buildErrorWidget(
+        _error!,
+        () => _loadPublicFeed(refresh: true),
+        retryText: 'Refresh Feed',
+      );
     }
 
     if (_posts.isEmpty) {
-      return _buildEmptyState();
+      return _buildEmptyFeed();
     }
 
     return RefreshIndicator(
-      onRefresh: _loadFeed,
+      onRefresh: () => _loadPublicFeed(refresh: true),
       color: const Color(0xFF3498DB),
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
         itemCount: _posts.length + (_isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index >= _posts.length) {
@@ -154,86 +257,67 @@ class _PublicFeedScreenState extends State<PublicFeedScreen> {
           }
 
           final post = _posts[index];
-          return _buildPostCard(post);
+          return _buildFeedItem(post);
         },
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyFeed() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.public,
-              size: 64,
-              color: const Color(0xFFBDC3C7),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F4FD),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Icon(
+                Icons.public,
+                size: 64,
+                color: Color(0xFF3498DB),
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             const Text(
               'No Public Posts Yet',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF7F8C8D),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Be the first to share your learning journey!',
-              style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFFBDC3C7),
+                color: Color(0xFF2C3E50),
               ),
               textAlign: TextAlign.center,
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildErrorState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: const Color(0xFFE74C3C),
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             const Text(
-              'Error Loading Feed',
+              'Be the first to share your learning journey with the community!',
               style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF7F8C8D),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _error ?? 'Unknown error',
-              style: const TextStyle(
                 fontSize: 14,
-                color: Color(0xFFBDC3C7),
+                color: Color(0xFF7F8C8D),
+                height: 1.5,
               ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _loadFeed,
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreatePostScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Create Post'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3498DB),
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Retry'),
             ),
           ],
         ),
@@ -241,176 +325,380 @@ class _PublicFeedScreenState extends State<PublicFeedScreen> {
     );
   }
 
-  Widget _buildPostCard(SocialPost post) {
-    return Card(
+  Widget _buildFeedItem(SocialPost post) {
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
+      decoration: BoxDecoration(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xFFE0E0E0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2C3E50).withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: const Color(0xFF3498DB),
-                  child: Text(
-                    post.userName.isNotEmpty ? post.userName[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        post.userName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF2C3E50),
-                        ),
-                      ),
-                      Text(
-                        _formatTime(post.createdAt),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF7F8C8D),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Post type chip
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getPostTypeColor(post.postType),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    _formatPostType(post.postType),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            _buildFeedItemHeader(post),
             const SizedBox(height: 12),
-            // Title
-            if (post.title.isNotEmpty)
-              Text(
-                post.title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2C3E50),
-                ),
-              ),
-            if (post.title.isNotEmpty) const SizedBox(height: 8),
-            // Content
-            Text(
-              post.content,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF34495E),
-                height: 1.5,
-              ),
-            ),
+            _buildFeedItemContent(post),
             const SizedBox(height: 12),
-            // Actions
-            Row(
-              children: [
-                Icon(
-                  Icons.favorite_border,
-                  size: 20,
-                  color: const Color(0xFF7F8C8D),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${post.likesCount}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF7F8C8D),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Icon(
-                  Icons.comment_outlined,
-                  size: 20,
-                  color: const Color(0xFF7F8C8D),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${post.commentsCount}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF7F8C8D),
-                  ),
-                ),
-              ],
-            ),
+            _buildFeedItemActions(post),
           ],
         ),
       ),
     );
   }
 
-  String _formatTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final diff = now.difference(dateTime);
+  Widget _buildFeedItemHeader(SocialPost post) {
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 20,
+          backgroundColor: const Color(0xFF3498DB),
+          child: Text(
+            post.userName.isNotEmpty ? post.userName[0].toUpperCase() : 'U',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: () => _navigateToUserProfile(post),
+                child: Text(
+                  post.userName.isNotEmpty ? post.userName : 'Unknown User',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF3498DB),
+                  ),
+                ),
+              ),
+              Text(
+                _formatTimestamp(post.createdAt),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF7F8C8D),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Icon(
+          _getPostTypeIcon(post.postType),
+          color: const Color(0xFF3498DB),
+          size: 20,
+        ),
+      ],
+    );
+  }
 
-    if (diff.inMinutes < 60) {
-      return '${diff.inMinutes}m ago';
-    } else if (diff.inHours < 24) {
-      return '${diff.inHours}h ago';
-    } else if (diff.inDays < 7) {
-      return '${diff.inDays}d ago';
-    } else {
-      return '${(diff.inDays / 7).floor()}w ago';
+  Widget _buildFeedItemContent(SocialPost post) {
+    return Text(
+      post.content,
+      style: const TextStyle(
+        fontSize: 14,
+        color: Color(0xFF2C3E50),
+        height: 1.4,
+      ),
+    );
+  }
+
+  Widget _buildFeedItemActions(SocialPost post) {
+    return Row(
+      children: [
+        IconButton(
+          icon: Icon(
+            post.isLiked ? Icons.favorite : Icons.favorite_border,
+            color: post.isLiked ? Colors.red : const Color(0xFF7F8C8D),
+            size: 20,
+          ),
+          onPressed: () => _toggleLike(post),
+        ),
+        Text(
+          '${post.likesCount}',
+          style: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFF7F8C8D),
+          ),
+        ),
+        const Spacer(),
+        // Show edit/delete buttons only for user's own posts
+        Consumer<UserProvider>(
+          builder: (context, userProvider, child) {
+            if (userProvider.isLoggedIn && 
+                userProvider.currentUser != null && 
+                post.userName == userProvider.currentUser!.userName) {
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.edit_outlined,
+                      color: Color(0xFF3498DB),
+                      size: 20,
+                    ),
+                    onPressed: () => _editPost(post),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: Color(0xFFE74C3C),
+                      size: 20,
+                    ),
+                    onPressed: () => _deletePost(post),
+                  ),
+                ],
+              );
+            }
+            return const SizedBox.shrink(); // Remove share button
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _toggleLike(SocialPost post) async {
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      if (!userProvider.isLoggedIn || userProvider.currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please login to like posts'),
+            backgroundColor: Color(0xFFE74C3C),
+          ),
+        );
+        return;
+      }
+
+      final result = await SocialService.toggleLike(
+        post.id,
+        userProvider.currentUser!.userName, // Changed from id to userName
+      );
+
+      // Update the post in the local list
+      setState(() {
+        final index = _posts.indexWhere((p) => p.id == post.id);
+        if (index != -1) {
+          _posts[index] = SocialPost(
+            id: post.id,
+            userName: post.userName,
+            postType: post.postType,
+            title: post.title,
+            content: post.content,
+            visibility: post.visibility,
+            likesCount: result['liked'] == true 
+                ? post.likesCount + 1 
+                : post.likesCount - 1,
+            commentsCount: post.commentsCount,
+            sharesCount: post.sharesCount,
+            pointsEarned: post.pointsEarned,
+            isLiked: result['liked'] == true,
+            authorAvatar: post.authorAvatar,
+            metadata: post.metadata,
+            createdAt: post.createdAt,
+            updatedAt: post.updatedAt,
+          );
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Like toggled'),
+          backgroundColor: result['liked'] == true 
+              ? const Color(0xFFE74C3C) 
+              : const Color(0xFF7F8C8D),
+        ),
+      );
+    } catch (e) {
+      print('Error toggling like: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to like post: $e'),
+          backgroundColor: const Color(0xFFE74C3C),
+        ),
+      );
     }
   }
 
-  String _formatPostType(String type) {
-    switch (type) {
-      case 'conversation':
-        return 'Conversation';
-      case 'learning_tip':
-        return 'Tip';
-      case 'achievement':
-        return 'Achievement';
-      case 'question':
-        return 'Question';
-      default:
-        return type;
+  Future<void> _editPost(SocialPost post) async {
+    // For now, show a simple edit dialog
+    final titleController = TextEditingController(text: post.title);
+    final contentController = TextEditingController(text: post.content);
+    
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Post'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(
+                labelText: 'Title',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: contentController,
+              decoration: const InputDecoration(
+                labelText: 'Content',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      try {
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        if (userProvider.isLoggedIn && userProvider.currentUser != null) {
+          await SocialService.updatePost(
+            post.id,
+            userProvider.currentUser!.userName,
+            {
+              'title': titleController.text.trim(),
+              'content': contentController.text.trim(),
+            },
+          );
+          
+          // Refresh the feed to show updated post
+          _loadPublicFeed(refresh: true);
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Post updated successfully'),
+              backgroundColor: Color(0xFF27AE60),
+            ),
+          );
+        }
+      } catch (e) {
+        print('Error updating post: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating post: $e'),
+            backgroundColor: const Color(0xFFE74C3C),
+          ),
+        );
+      }
     }
   }
 
-  Color _getPostTypeColor(String type) {
-    switch (type) {
-      case 'conversation':
-        return const Color(0xFF3498DB);
-      case 'learning_tip':
-        return const Color(0xFF27AE60);
-      case 'achievement':
-        return const Color(0xFFF39C12);
-      case 'question':
-        return const Color(0xFF9B59B6);
-      default:
-        return const Color(0xFF7F8C8D);
+  Future<void> _deletePost(SocialPost post) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Post'),
+        content: const Text('Are you sure you want to delete this post? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFE74C3C),
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final userProvider = Provider.of<UserProvider>(context, listen: false);
+        if (userProvider.isLoggedIn && userProvider.currentUser != null) {
+          await SocialService.deletePost(post.id, userProvider.currentUser!.userName);
+          
+          // Remove post from local state
+          setState(() {
+            _posts.removeWhere((p) => p.id == post.id);
+          });
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Post deleted successfully'),
+              backgroundColor: Color(0xFF27AE60),
+            ),
+          );
+        }
+      } catch (e) {
+        print('Error deleting post: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting post: $e'),
+            backgroundColor: const Color(0xFFE74C3C),
+          ),
+        );
+      }
     }
+  }
+
+
+  IconData _getPostTypeIcon(String? postType) {
+    switch (postType) {
+      case 'learning_tip':
+        return Icons.lightbulb_outline;
+      case 'achievement':
+        return Icons.emoji_events;
+      case 'milestone':
+        return Icons.flag;
+      case 'challenge':
+        return Icons.fitness_center;
+      default:
+        return Icons.article_outlined;
+    }
+  }
+
+  String _formatTimestamp(DateTime timestamp) {
+    return app_date_utils.DateUtils.formatDate(timestamp);
+  }
+
+  void _navigateToUserProfile(SocialPost post) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    if (!userProvider.isLoggedIn || userProvider.currentUser == null) {
+      return;
+    }
+
+    final isOwnProfile = post.userName == userProvider.currentUser!.userName;
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UserProfileScreen(
+          targetUserName: isOwnProfile ? null : post.userName,
+          isViewingOtherProfile: !isOwnProfile,
+        ),
+      ),
+    );
   }
 }
-

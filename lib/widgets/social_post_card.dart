@@ -261,27 +261,7 @@ class SocialPostCard extends StatelessWidget {
             onTap: onLike,
           ),
           
-          const SizedBox(width: 24),
           
-          // Comment button
-          _buildActionButton(
-            icon: Icons.chat_bubble_outline,
-            label: post.commentsCount.toString(),
-            color: const Color(0xFF7F8C8D),
-            onTap: onComment,
-          ),
-          
-          const SizedBox(width: 24),
-          
-          // Share button
-          _buildActionButton(
-            icon: Icons.share_outlined,
-            label: post.sharesCount.toString(),
-            color: const Color(0xFF7F8C8D),
-            onTap: () {
-              // TODO: Implement share functionality
-            },
-          ),
         ],
       ),
     );

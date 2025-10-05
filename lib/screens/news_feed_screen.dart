@@ -5,7 +5,7 @@ import '../services/social_service.dart';
 import '../models/social_models.dart';
 import '../widgets/error_handler.dart';
 import 'create_post_screen.dart';
-import 'post_comments_screen.dart';
+import 'user_profile_screen.dart';
 
 class NewsFeedScreen extends StatefulWidget {
   final bool shouldRefresh;
@@ -430,12 +430,15 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                post.userName.isNotEmpty ? post.userName : 'Unknown User',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2C3E50),
+              GestureDetector(
+                onTap: () => _navigateToUserProfile(post),
+                child: Text(
+                  post.userName.isNotEmpty ? post.userName : 'Unknown User',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF3498DB),
+                  ),
                 ),
               ),
               Text(
@@ -486,22 +489,6 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
             color: Color(0xFF7F8C8D),
           ),
         ),
-        const SizedBox(width: 16),
-        IconButton(
-          icon: Icon(
-            Icons.comment_outlined,
-            color: const Color(0xFF7F8C8D),
-            size: 20,
-          ),
-          onPressed: () => _showComments(post),
-        ),
-        Text(
-          '${post.commentsCount}',
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF7F8C8D),
-          ),
-        ),
         const Spacer(),
         // Show edit/delete buttons only for user's own posts
         Consumer<UserProvider>(
@@ -531,16 +518,7 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
                 ],
               );
             }
-            return IconButton(
-              icon: const Icon(
-                Icons.share_outlined,
-                color: Color(0xFF7F8C8D),
-                size: 20,
-              ),
-              onPressed: () {
-                // TODO: Implement share functionality
-              },
-            );
+            return const SizedBox.shrink(); // Remove share button
           },
         ),
       ],
@@ -562,7 +540,7 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
 
       final result = await SocialService.toggleLike(
         post.id,
-        userProvider.currentUser!.id,
+        userProvider.currentUser!.userName, // Changed from id to userName
       );
 
       // Update the post in the local list
@@ -741,14 +719,6 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
     }
   }
 
-  void _showComments(SocialPost post) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PostCommentsScreen(post: post),
-      ),
-    );
-  }
 
   IconData _getPostTypeIcon(String? postType) {
     switch (postType) {
@@ -780,5 +750,24 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
     } else {
       return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
     }
+  }
+
+  void _navigateToUserProfile(SocialPost post) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    if (!userProvider.isLoggedIn || userProvider.currentUser == null) {
+      return;
+    }
+
+    final isOwnProfile = post.userName == userProvider.currentUser!.userName;
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UserProfileScreen(
+          targetUserName: isOwnProfile ? null : post.userName,
+          isViewingOtherProfile: !isOwnProfile,
+        ),
+      ),
+    );
   }
 }

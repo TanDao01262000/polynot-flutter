@@ -5,7 +5,6 @@ import 'achievements_screen.dart';
 import 'leaderboard_screen.dart';
 import 'study_analytics_screen.dart';
 import 'user_discovery_screen.dart';
-import 'public_feed_screen.dart';
 
 class MoreTabScreen extends StatelessWidget {
   const MoreTabScreen({super.key});
@@ -233,16 +232,17 @@ class MoreTabScreen extends StatelessWidget {
             Expanded(
               child: _buildFeatureCard(
                 context: context,
-                title: 'Public Feed',
-                subtitle: 'All posts',
-                icon: Icons.public,
-                color: const Color(0xFFFDF2E9),
-                iconColor: const Color(0xFFE67E22),
+                title: 'Settings',
+                subtitle: 'App preferences',
+                icon: Icons.settings,
+                color: const Color(0xFFF0F0F0),
+                iconColor: const Color(0xFF7F8C8D),
                 onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PublicFeedScreen(),
+                  // TODO: Implement settings screen
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Settings feature coming soon!'),
+                      backgroundColor: Color(0xFF3498DB),
                     ),
                   );
                 },
@@ -321,23 +321,7 @@ class MoreTabScreen extends StatelessWidget {
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: _buildFeatureCard(
-                context: context,
-                title: 'Settings',
-                subtitle: 'App preferences',
-                icon: Icons.settings,
-                color: const Color(0xFFF0F0F0),
-                iconColor: const Color(0xFF7F8C8D),
-                onTap: () {
-                  // TODO: Implement settings screen
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Settings feature coming soon!'),
-                      backgroundColor: Color(0xFF3498DB),
-                    ),
-                  );
-                },
-              ),
+              child: Container(), // Empty space to maintain grid layout
             ),
           ],
         ),

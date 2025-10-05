@@ -1,7 +1,10 @@
 
+import '../utils/date_utils.dart' as app_date_utils;
+
 // Social Post Model
 class SocialPost {
   final String id;
+  final String? userId;  // Added userId field
   final String userName;
   final String postType;
   final String title;
@@ -19,6 +22,7 @@ class SocialPost {
 
   SocialPost({
     required this.id,
+    this.userId,  // Added userId parameter
     required this.userName,
     required this.postType,
     required this.title,
@@ -38,6 +42,7 @@ class SocialPost {
   factory SocialPost.fromJson(Map<String, dynamic> json) {
     return SocialPost(
       id: json['id'] ?? '',
+      userId: json['user_id'],  // Added userId parsing
       userName: json['user_name'] ?? '',
       postType: json['post_type'] ?? '',
       title: json['title'] ?? '',
@@ -50,14 +55,15 @@ class SocialPost {
       isLiked: json['is_liked'] ?? false,
       authorAvatar: json['author_avatar'],
       metadata: json['metadata'],
-      createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(json['updated_at'] ?? DateTime.now().toIso8601String()),
+      createdAt: app_date_utils.DateUtils.parseDate(json['created_at']),
+      updatedAt: app_date_utils.DateUtils.parseDate(json['updated_at']),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'user_id': userId,  // Added userId to JSON
       'user_name': userName,
       'post_type': postType,
       'title': title,
@@ -77,6 +83,7 @@ class SocialPost {
 
   SocialPost copyWith({
     String? id,
+    String? userId,
     String? userName,
     String? postType,
     String? title,
@@ -94,6 +101,7 @@ class SocialPost {
   }) {
     return SocialPost(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       userName: userName ?? this.userName,
       postType: postType ?? this.postType,
       title: title ?? this.title,
@@ -143,7 +151,7 @@ class PostComment {
       likesCount: json['likes_count'] ?? 0,
       isLiked: json['is_liked'] ?? false,
       authorAvatar: json['author_avatar'],
-      createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
+      createdAt: app_date_utils.DateUtils.parseDate(json['created_at']),
     );
   }
 
@@ -202,7 +210,7 @@ class UserPoints {
   }
 }
 
-// Achievement Model
+// Achievement Model (for unlocked achievements)
 class SocialAchievement {
   final String id;
   final String achievementId;
@@ -230,7 +238,7 @@ class SocialAchievement {
       description: json['description'] ?? '',
       pointsEarned: json['points_earned'] ?? 0,
       icon: json['icon'] ?? '🏆',
-      unlockedAt: DateTime.parse(json['unlocked_at'] ?? DateTime.now().toIso8601String()),
+      unlockedAt: app_date_utils.DateUtils.parseDate(json['unlocked_at']),
     );
   }
 
@@ -244,6 +252,104 @@ class SocialAchievement {
       'icon': icon,
       'unlocked_at': unlockedAt.toIso8601String(),
     };
+  }
+}
+
+// Available Achievement Model (for all available achievements)
+class AvailableAchievement {
+  final String id;
+  final String name;
+  final String description;
+  final String icon;
+  final int points;
+
+  AvailableAchievement({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.icon,
+    required this.points,
+  });
+
+  factory AvailableAchievement.fromJson(Map<String, dynamic> json) {
+    return AvailableAchievement(
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      description: json['description'] ?? '',
+      icon: json['icon'] ?? '🏆',
+      points: json['points'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'icon': icon,
+      'points': points,
+    };
+  }
+}
+
+// Achievement Response Models
+class UserAchievementsResponse {
+  final List<SocialAchievement> achievements;
+  final int count;
+
+  UserAchievementsResponse({
+    required this.achievements,
+    required this.count,
+  });
+
+  factory UserAchievementsResponse.fromJson(Map<String, dynamic> json) {
+    return UserAchievementsResponse(
+      achievements: (json['achievements'] as List<dynamic>?)
+          ?.map((item) => SocialAchievement.fromJson(item as Map<String, dynamic>))
+          .toList() ?? [],
+      count: json['count'] ?? 0,
+    );
+  }
+}
+
+class AvailableAchievementsResponse {
+  final List<AvailableAchievement> achievements;
+  final int total;
+
+  AvailableAchievementsResponse({
+    required this.achievements,
+    required this.total,
+  });
+
+  factory AvailableAchievementsResponse.fromJson(Map<String, dynamic> json) {
+    return AvailableAchievementsResponse(
+      achievements: (json['achievements'] as List<dynamic>?)
+          ?.map((item) => AvailableAchievement.fromJson(item as Map<String, dynamic>))
+          .toList() ?? [],
+      total: json['total'] ?? 0,
+    );
+  }
+}
+
+class AchievementCheckResponse {
+  final String message;
+  final List<SocialAchievement> achievements;
+  final int count;
+
+  AchievementCheckResponse({
+    required this.message,
+    required this.achievements,
+    required this.count,
+  });
+
+  factory AchievementCheckResponse.fromJson(Map<String, dynamic> json) {
+    return AchievementCheckResponse(
+      message: json['message'] ?? '',
+      achievements: (json['achievements'] as List<dynamic>?)
+          ?.map((item) => SocialAchievement.fromJson(item as Map<String, dynamic>))
+          .toList() ?? [],
+      count: json['count'] ?? 0,
+    );
   }
 }
 
@@ -329,7 +435,7 @@ class WordAnalytics {
       studyTypes: Map<String, int>.from(json['study_types'] ?? {}),
       averageDifficulty: (json['average_difficulty'] ?? 0.0).toDouble(),
       popularityTrend: json['popularity_trend'] ?? 'stable',
-      lastUpdated: DateTime.parse(json['last_updated'] ?? DateTime.now().toIso8601String()),
+      lastUpdated: app_date_utils.DateUtils.parseDate(json['last_updated']),
     );
   }
 
@@ -429,7 +535,7 @@ class TrendingWord {
       level: json['level'] ?? '',
       popularityScore: (json['popularity_score'] ?? 0.0).toDouble(),
       usageCount: json['usage_count'] ?? 0,
-      lastUpdated: DateTime.parse(json['last_updated'] ?? DateTime.now().toIso8601String()),
+      lastUpdated: app_date_utils.DateUtils.parseDate(json['last_updated']),
     );
   }
 
@@ -679,4 +785,291 @@ class LevelThresholds {
     9: 4000,
     10: 5000,
   };
+}
+
+// Enhanced News Feed Response Model
+class NewsFeedResponse {
+  final List<SocialPost> posts;
+  final int totalPosts;
+  final int currentPage;
+  final int totalPages;
+  final bool hasNext;
+  final List<ContentRecommendation>? recommendations;
+  final List<TrendingContent>? trendingContent;
+  final String feedAlgorithm;
+  final bool personalizationApplied;
+
+  NewsFeedResponse({
+    required this.posts,
+    required this.totalPosts,
+    required this.currentPage,
+    required this.totalPages,
+    required this.hasNext,
+    this.recommendations,
+    this.trendingContent,
+    this.feedAlgorithm = 'smart_personalized',
+    this.personalizationApplied = false,
+  });
+
+  factory NewsFeedResponse.fromJson(Map<String, dynamic> json) {
+    try {
+      print('🔍 Parsing NewsFeedResponse...');
+      print('🔍 Posts: ${json['posts']}');
+      print('🔍 Recommendations: ${json['recommendations']}');
+      print('🔍 Trending content: ${json['trending_content']}');
+      
+      List<SocialPost> posts = [];
+      if (json['posts'] is List) {
+        posts = (json['posts'] as List).map((postJson) {
+          try {
+            return SocialPost.fromJson(postJson as Map<String, dynamic>);
+          } catch (e) {
+            print('Error parsing post: $e');
+            print('Post JSON: $postJson');
+            rethrow;
+          }
+        }).toList();
+      }
+      
+      List<ContentRecommendation>? recommendations;
+      if (json['recommendations'] is List) {
+        try {
+          recommendations = (json['recommendations'] as List).map((recJson) {
+            return ContentRecommendation.fromJson(recJson as Map<String, dynamic>);
+          }).toList();
+        } catch (e) {
+          print('Error parsing recommendations: $e');
+          print('Recommendations JSON: ${json['recommendations']}');
+          recommendations = null;
+        }
+      }
+      
+      List<TrendingContent>? trendingContent;
+      if (json['trending_content'] is List) {
+        try {
+          trendingContent = (json['trending_content'] as List).map((trendJson) {
+            return TrendingContent.fromJson(trendJson as Map<String, dynamic>);
+          }).toList();
+        } catch (e) {
+          print('Error parsing trending content: $e');
+          print('Trending content JSON: ${json['trending_content']}');
+          trendingContent = null;
+        }
+      }
+      
+      return NewsFeedResponse(
+        posts: posts,
+        totalPosts: json['total_posts'] ?? json['totalPosts'] ?? 0,
+        currentPage: json['current_page'] ?? json['currentPage'] ?? 1,
+        totalPages: json['total_pages'] ?? json['totalPages'] ?? 1,
+        hasNext: json['has_next'] ?? json['hasNext'] ?? false,
+        recommendations: recommendations,
+        trendingContent: trendingContent,
+        feedAlgorithm: json['feed_algorithm'] ?? json['feedAlgorithm'] ?? 'smart_personalized',
+        personalizationApplied: json['personalization_applied'] ?? json['personalizationApplied'] ?? false,
+      );
+    } catch (e) {
+      print('Error parsing NewsFeedResponse: $e');
+      print('JSON keys: ${json.keys.toList()}');
+      print('Posts type: ${json['posts'].runtimeType}');
+      if (json['posts'] is List && (json['posts'] as List).isNotEmpty) {
+        print('First post type: ${(json['posts'] as List).first.runtimeType}');
+      }
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'posts': posts.map((post) => post.toJson()).toList(),
+      'total_posts': totalPosts,
+      'current_page': currentPage,
+      'total_pages': totalPages,
+      'has_next': hasNext,
+      'recommendations': recommendations?.map((rec) => rec.toJson()).toList(),
+      'trending_content': trendingContent?.map((trend) => trend.toJson()).toList(),
+      'feed_algorithm': feedAlgorithm,
+      'personalization_applied': personalizationApplied,
+    };
+  }
+}
+
+// Content Recommendation Model
+class ContentRecommendation {
+  final String contentId;
+  final String contentType;
+  final String title;
+  final String content;
+  final double relevanceScore;
+  final String reason;
+  final String authorLevel;
+  final String targetLanguage;
+
+  ContentRecommendation({
+    required this.contentId,
+    required this.contentType,
+    required this.title,
+    required this.content,
+    required this.relevanceScore,
+    required this.reason,
+    required this.authorLevel,
+    required this.targetLanguage,
+  });
+
+  factory ContentRecommendation.fromJson(Map<String, dynamic> json) {
+    try {
+      print('🔍 Parsing ContentRecommendation: $json');
+      return ContentRecommendation(
+        contentId: json['content_id']?.toString() ?? '',
+        contentType: json['content_type']?.toString() ?? '',
+        title: json['title']?.toString() ?? '',
+        content: json['content']?.toString() ?? '',
+        relevanceScore: (json['relevance_score'] ?? 0.0).toDouble(),
+        reason: json['reason']?.toString() ?? '',
+        authorLevel: json['author_level']?.toString() ?? '',
+        targetLanguage: json['target_language']?.toString() ?? '',
+      );
+    } catch (e) {
+      print('Error parsing ContentRecommendation: $e');
+      print('JSON: $json');
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'content_id': contentId,
+      'content_type': contentType,
+      'title': title,
+      'content': content,
+      'relevance_score': relevanceScore,
+      'reason': reason,
+      'author_level': authorLevel,
+      'target_language': targetLanguage,
+    };
+  }
+}
+
+// Trending Content Model
+class TrendingContent {
+  final String contentType;
+  final String content;
+  final String language;
+  final String level;
+  final double popularityScore;
+  final int usageCount;
+  final DateTime lastUpdated;
+
+  TrendingContent({
+    required this.contentType,
+    required this.content,
+    required this.language,
+    required this.level,
+    required this.popularityScore,
+    required this.usageCount,
+    required this.lastUpdated,
+  });
+
+  factory TrendingContent.fromJson(Map<String, dynamic> json) {
+    try {
+      print('🔍 Parsing TrendingContent: $json');
+      return TrendingContent(
+        contentType: json['content_type']?.toString() ?? '',
+        content: json['content']?.toString() ?? '',
+        language: json['language']?.toString() ?? '',
+        level: json['level']?.toString() ?? '',
+        popularityScore: (json['popularity_score'] ?? 0.0).toDouble(),
+        usageCount: json['usage_count'] ?? 0,
+        lastUpdated: app_date_utils.DateUtils.parseDate(json['last_updated']),
+      );
+    } catch (e) {
+      print('Error parsing TrendingContent: $e');
+      print('JSON: $json');
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'content_type': contentType,
+      'content': content,
+      'language': language,
+      'level': level,
+      'popularity_score': popularityScore,
+      'usage_count': usageCount,
+      'last_updated': lastUpdated.toIso8601String(),
+    };
+  }
+}
+
+// User Privacy Settings Model
+class UserPrivacySettings {
+  final String userName;
+  final String showPostsToLevel;
+  final bool showAchievements;
+  final bool showLearningProgress;
+  final bool allowLevelFiltering;
+  final bool studyGroupVisibility;
+
+  UserPrivacySettings({
+    required this.userName,
+    this.showPostsToLevel = 'same',
+    this.showAchievements = true,
+    this.showLearningProgress = true,
+    this.allowLevelFiltering = true,
+    this.studyGroupVisibility = true,
+  });
+
+  factory UserPrivacySettings.fromJson(Map<String, dynamic> json) {
+    try {
+      print('🔒 UserPrivacySettings.fromJson - Input JSON: $json');
+      final settings = UserPrivacySettings(
+        userName: json['user_name'] ?? '',
+        showPostsToLevel: json['show_posts_to_level'] ?? 'same',
+        showAchievements: json['show_achievements'] ?? true,
+        showLearningProgress: json['show_learning_progress'] ?? true,
+        allowLevelFiltering: json['allow_level_filtering'] ?? true,
+        studyGroupVisibility: json['study_group_visibility'] ?? true,
+      );
+      print('🔒 UserPrivacySettings.fromJson - Created settings: $settings');
+      return settings;
+    } catch (e) {
+      print('🔒 Error in UserPrivacySettings.fromJson: $e');
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'user_name': userName,
+      'show_posts_to_level': showPostsToLevel,
+      'show_achievements': showAchievements,
+      'show_learning_progress': showLearningProgress,
+      'allow_level_filtering': allowLevelFiltering,
+      'study_group_visibility': studyGroupVisibility,
+    };
+  }
+
+  UserPrivacySettings copyWith({
+    String? userName,
+    String? showPostsToLevel,
+    bool? showAchievements,
+    bool? showLearningProgress,
+    bool? allowLevelFiltering,
+    bool? studyGroupVisibility,
+  }) {
+    return UserPrivacySettings(
+      userName: userName ?? this.userName,
+      showPostsToLevel: showPostsToLevel ?? this.showPostsToLevel,
+      showAchievements: showAchievements ?? this.showAchievements,
+      showLearningProgress: showLearningProgress ?? this.showLearningProgress,
+      allowLevelFiltering: allowLevelFiltering ?? this.allowLevelFiltering,
+      studyGroupVisibility: studyGroupVisibility ?? this.studyGroupVisibility,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'UserPrivacySettings(userName: $userName, showPostsToLevel: $showPostsToLevel, showAchievements: $showAchievements, showLearningProgress: $showLearningProgress, allowLevelFiltering: $allowLevelFiltering, studyGroupVisibility: $studyGroupVisibility)';
+  }
 }

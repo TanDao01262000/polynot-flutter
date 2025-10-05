@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import '../services/social_service.dart';
+import 'user_profile_screen.dart';
 
 class UserDiscoveryScreen extends StatefulWidget {
   const UserDiscoveryScreen({super.key});
@@ -10,7 +11,7 @@ class UserDiscoveryScreen extends StatefulWidget {
   State<UserDiscoveryScreen> createState() => _UserDiscoveryScreenState();
 }
 
-class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
+class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> with TickerProviderStateMixin {
   List<dynamic> _users = [];
   bool _isLoading = false;
   String _searchQuery = '';
@@ -18,6 +19,8 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
   String? _selectedLanguage;
   int _currentPage = 1;
   bool _hasMoreData = true;
+  Map<String, bool> _followStatus = {}; // Track follow status for each user
+  late TabController _tabController;
 
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -25,14 +28,56 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _loadUsers();
     _scrollController.addListener(_onScroll);
+  }
+
+
+  Future<void> _loadFollowStatusForUsers(List<dynamic> users) async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    if (!userProvider.isLoggedIn || userProvider.currentUser == null) return;
+
+    final currentUser = userProvider.currentUser!.userName;
+    
+    try {
+      final following = await SocialService.getUserFollowing(currentUser);
+      final followingUsernames = following.map((user) => user['user_name'] as String).toSet();
+      
+      // Update follow status without triggering setState (will be done by caller)
+      for (final user in users) {
+        final userName = user['user_name'] as String;
+        _followStatus[userName] = followingUsernames.contains(userName);
+      }
+    } catch (e) {
+      print('Error loading follow status: $e');
+    }
+  }
+
+  // Filter users based on follow status
+  List<dynamic> get _notFollowingUsers {
+    return _users.where((user) {
+      final userName = user['user_name'] as String;
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      // Don't show current user and users already following
+      return userName != userProvider.currentUser?.userName && 
+             (_followStatus[userName] ?? false) == false;
+    }).toList();
+  }
+
+  List<dynamic> get _followingUsers {
+    return _users.where((user) {
+      final userName = user['user_name'] as String;
+      // Show only users that are being followed
+      return (_followStatus[userName] ?? false) == true;
+    }).toList();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     _scrollController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -58,8 +103,13 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
         page: _currentPage,
       );
 
+      final users = result['users'] ?? [];
+      
+      // Load follow status before updating UI to prevent flickering
+      await _loadFollowStatusForUsers(users);
+      
       setState(() {
-        _users = result['users'] ?? [];
+        _users = users;
         _hasMoreData = result['has_next'] ?? false;
         _isLoading = false;
       });
@@ -95,8 +145,13 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
         page: nextPage,
       );
 
+      final newUsers = result['users'] ?? [];
+      
+      // Load follow status for new users before updating UI
+      await _loadFollowStatusForUsers(newUsers);
+      
       setState(() {
-        _users.addAll(result['users'] ?? []);
+        _users.addAll(newUsers);
         _currentPage = nextPage;
         _hasMoreData = result['has_next'] ?? false;
         _isLoading = false;
@@ -122,22 +177,42 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
         return;
       }
 
+      final currentUser = userProvider.currentUser!.userName;
+      final isCurrentlyFollowing = _followStatus[targetUserName] ?? false;
+      
+      // Show loading state
+      setState(() {
+        _followStatus[targetUserName] = !isCurrentlyFollowing; // Optimistically update UI
+      });
+
       final result = await SocialService.toggleFollow(
         targetUserName,
-        userProvider.currentUser!.userName,
+        currentUser,
       );
 
       if (mounted) {
+        // Update follow status based on actual response
+        setState(() {
+          _followStatus[targetUserName] = result['following'] ?? !isCurrentlyFollowing;
+        });
+
+        final action = result['following'] == true ? 'followed' : 'unfollowed';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result['message'] ?? 'Follow toggled'),
+            content: Text('Successfully $action $targetUserName'),
             backgroundColor: const Color(0xFF27AE60),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
     } catch (e) {
       print('Error following user: $e');
       if (mounted) {
+        // Revert optimistic update on error
+        setState(() {
+          _followStatus[targetUserName] = !_followStatus[targetUserName]!;
+        });
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
@@ -146,6 +221,25 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
         );
       }
     }
+  }
+
+  void _navigateToUserProfile(String userName) {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    if (!userProvider.isLoggedIn || userProvider.currentUser == null) {
+      return;
+    }
+
+    final isOwnProfile = userName == userProvider.currentUser!.userName;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UserProfileScreen(
+          targetUserName: isOwnProfile ? null : userName,
+          isViewingOtherProfile: !isOwnProfile,
+        ),
+      ),
+    );
   }
 
   @override
@@ -163,6 +257,30 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF2C3E50)),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: const Color(0xFF3498DB),
+          labelColor: const Color(0xFF3498DB),
+          unselectedLabelColor: const Color(0xFF7F8C8D),
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
+          tabs: [
+            Tab(
+              icon: const Icon(Icons.person_add, size: 20),
+              text: 'Discover (${_notFollowingUsers.length})',
+            ),
+            Tab(
+              icon: const Icon(Icons.people, size: 20),
+              text: 'Following (${_followingUsers.length})',
+            ),
+          ],
+        ),
       ),
       body: Column(
         children: [
@@ -278,47 +396,60 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
               ],
             ),
           ),
-          // User List
+          // Tab Content
           Expanded(
-            child: _isLoading && _users.isEmpty
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF3498DB),
-                    ),
-                  )
-                : _users.isEmpty
-                    ? _buildEmptyState()
-                    : RefreshIndicator(
-                        onRefresh: _loadUsers,
-                        color: const Color(0xFF3498DB),
-                        child: ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _users.length + (_isLoading ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index >= _users.length) {
-                              return const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(16),
-                                  child: CircularProgressIndicator(
-                                    color: Color(0xFF3498DB),
-                                  ),
-                                ),
-                              );
-                            }
-
-                            final user = _users[index];
-                            return _buildUserCard(user);
-                          },
-                        ),
-                      ),
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Discover Tab - Users not following yet
+                _buildUserListTab(_notFollowingUsers),
+                // Following Tab - Users already following
+                _buildUserListTab(_followingUsers),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+
+  Widget _buildUserListTab(List<dynamic> users) {
+    return _isLoading && users.isEmpty
+        ? const Center(
+            child: CircularProgressIndicator(
+              color: Color(0xFF3498DB),
+            ),
+          )
+        : users.isEmpty
+            ? _buildEmptyStateForTab()
+            : RefreshIndicator(
+                onRefresh: _loadUsers,
+                color: const Color(0xFF3498DB),
+                child: ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: users.length + (_isLoading ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index >= users.length) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF3498DB),
+                          ),
+                        ),
+                      );
+                    }
+
+                    final user = users[index];
+                    return _buildUserCard(user);
+                  },
+                ),
+              );
+  }
+
+  Widget _buildEmptyStateForTab() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -326,25 +457,29 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.people_outline,
-              size: 64,
+              _tabController.index == 0 ? Icons.person_search : Icons.people_outline,
+              size: 80,
               color: const Color(0xFFBDC3C7),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'No Users Found',
-              style: TextStyle(
+            Text(
+              _tabController.index == 0 
+                  ? 'No new users to discover'
+                  : 'Not following anyone yet',
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF7F8C8D),
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Try adjusting your search filters',
-              style: TextStyle(
+            Text(
+              _tabController.index == 0
+                  ? 'Try adjusting your search filters or check back later'
+                  : 'Start following users to see them here',
+              style: const TextStyle(
                 fontSize: 14,
-                color: Color(0xFFBDC3C7),
+                color: Color(0xFF95A5A6),
               ),
               textAlign: TextAlign.center,
             ),
@@ -413,12 +548,15 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      userName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF2C3E50),
+                    GestureDetector(
+                      onTap: () => _navigateToUserProfile(userName),
+                      child: Text(
+                        userName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF3498DB),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -460,12 +598,19 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
                     return const SizedBox.shrink();
                   }
 
+                  final isFollowing = _followStatus[userName] ?? false;
+                  
                   return ElevatedButton.icon(
                     onPressed: () => _followUser(userName),
-                    icon: const Icon(Icons.person_add, size: 16),
-                    label: const Text('Follow'),
+                    icon: Icon(
+                      isFollowing ? Icons.person_remove : Icons.person_add,
+                      size: 16,
+                    ),
+                    label: Text(isFollowing ? 'Unfollow' : 'Follow'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3498DB),
+                      backgroundColor: isFollowing 
+                          ? const Color(0xFFE74C3C) 
+                          : const Color(0xFF3498DB),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       shape: RoundedRectangleBorder(
@@ -479,10 +624,12 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> {
                   );
                 },
               ),
+              
             ],
           ),
         ),
       ),
     );
   }
+
 }
