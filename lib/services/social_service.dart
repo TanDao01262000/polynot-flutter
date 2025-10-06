@@ -136,10 +136,10 @@ class SocialService {
     }
   }
   
-  /// Get user's followers
-  static Future<Map<String, dynamic>> getFollowers(String userName) async {
+  /// Get user's followers (uses user_id)
+  static Future<Map<String, dynamic>> getFollowers(String userId) async {
     try {
-      final uri = Uri.parse('$baseUrl/social/users/$userName/followers');
+      final uri = Uri.parse('$baseUrl/social/users/$userId/followers');
       
       print('👥 Get Followers: $uri');
       
@@ -163,11 +163,26 @@ class SocialService {
       rethrow;
     }
   }
-  
-  /// Get users that a user is following
-  static Future<Map<String, dynamic>> getFollowing(String userName) async {
+
+  /// Get user's followers (uses user_name for backward compatibility)
+  /// @deprecated Use getFollowers() with user_id instead
+  static Future<Map<String, dynamic>> getFollowersByUsername(String userName) async {
     try {
-      final uri = Uri.parse('$baseUrl/social/users/$userName/following');
+      final userId = await getUserIdFromUsername(userName);
+      if (userId == null) {
+        throw Exception('Could not find user ID for username: $userName');
+      }
+      return await getFollowers(userId);
+    } catch (e) {
+      print('👥 Get Followers by Username Error: $e');
+      rethrow;
+    }
+  }
+  
+  /// Get users that a user is following (uses user_id)
+  static Future<Map<String, dynamic>> getFollowing(String userId) async {
+    try {
+      final uri = Uri.parse('$baseUrl/social/users/$userId/following');
       
       print('👥 Get Following: $uri');
       
@@ -188,6 +203,21 @@ class SocialService {
       }
     } catch (e) {
       print('👥 Get Following Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get users that a user is following (uses user_name for backward compatibility)
+  /// @deprecated Use getFollowing() with user_id instead
+  static Future<Map<String, dynamic>> getFollowingByUsername(String userName) async {
+    try {
+      final userId = await getUserIdFromUsername(userName);
+      if (userId == null) {
+        throw Exception('Could not find user ID for username: $userName');
+      }
+      return await getFollowing(userId);
+    } catch (e) {
+      print('👥 Get Following by Username Error: $e');
       rethrow;
     }
   }
@@ -346,16 +376,15 @@ class SocialService {
     }
   }
 
-  /// Toggle follow on a user
-  /// Follow/unfollow a user (uses user_name, not user_id)
-  static Future<Map<String, dynamic>> toggleFollow(
-    String targetUserName,
-    String currentUserName,
+  /// Follow a user (uses user_id)
+  static Future<Map<String, dynamic>> followUser(
+    String targetUserId,
+    String followerUserId,
   ) async {
     try {
-      final uri = Uri.parse('$baseUrl/social/users/$targetUserName/follow?user_name=$currentUserName');
+      final uri = Uri.parse('$baseUrl/social/users/$targetUserId/follow?user_id=$followerUserId');
 
-      print('👥 Toggling follow for user: $targetUserName by $currentUserName');
+      print('👥 Following user ID: $targetUserId by user ID: $followerUserId');
 
       final response = await http.post(
         uri,
@@ -364,13 +393,42 @@ class SocialService {
         },
       ).timeout(const Duration(seconds: 10));
 
-      print('👥 Toggle Follow Response: ${response.statusCode}');
-      print('👥 Toggle Follow Body: ${response.body}');
+      print('👥 Follow Response: ${response.statusCode}');
+      print('👥 Follow Body: ${response.body}');
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        throw Exception('Failed to toggle follow: ${response.statusCode}');
+        throw Exception('Failed to follow user: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('👥 Follow Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Toggle follow on a user (uses user_name for backward compatibility)
+  /// @deprecated Use followUser() and unfollowUser() with user_id instead
+  static Future<Map<String, dynamic>> toggleFollow(
+    String targetUserName,
+    String currentUserName,
+  ) async {
+    try {
+      // Get user IDs from usernames
+      final targetUserId = await getUserIdFromUsername(targetUserName);
+      final currentUserId = await getUserIdFromUsername(currentUserName);
+      
+      if (targetUserId == null || currentUserId == null) {
+        throw Exception('Could not find user IDs for usernames');
+      }
+      
+      // Check if already following
+      final isCurrentlyFollowing = await isFollowing(currentUserName, targetUserName);
+      
+      if (isCurrentlyFollowing) {
+        return await unfollowUser(targetUserId, currentUserId);
+      } else {
+        return await followUser(targetUserId, currentUserId);
       }
     } catch (e) {
       print('👥 Toggle Follow Error: $e');
@@ -378,15 +436,15 @@ class SocialService {
     }
   }
 
-  /// Unfollow a user (dedicated unfollow endpoint)
+  /// Unfollow a user (uses user_id)
   static Future<Map<String, dynamic>> unfollowUser(
-    String targetUserName,
-    String currentUserName,
+    String targetUserId,
+    String followerUserId,
   ) async {
     try {
-      final uri = Uri.parse('$baseUrl/social/users/$targetUserName/follow?user_name=$currentUserName');
+      final uri = Uri.parse('$baseUrl/social/users/$targetUserId/follow?user_id=$followerUserId');
 
-      print('👥 Unfollowing user: $targetUserName by $currentUserName');
+      print('👥 Unfollowing user ID: $targetUserId by user ID: $followerUserId');
 
       final response = await http.delete(
         uri,
@@ -409,14 +467,36 @@ class SocialService {
     }
   }
 
-  /// Check if a user is following another user
+  /// Unfollow a user (uses user_name for backward compatibility)
+  /// @deprecated Use unfollowUser() with user_id instead
+  static Future<Map<String, dynamic>> unfollowUserByUsername(
+    String targetUserName,
+    String currentUserName,
+  ) async {
+    try {
+      // Get user IDs from usernames
+      final targetUserId = await getUserIdFromUsername(targetUserName);
+      final currentUserId = await getUserIdFromUsername(currentUserName);
+      
+      if (targetUserId == null || currentUserId == null) {
+        throw Exception('Could not find user IDs for usernames');
+      }
+      
+      return await unfollowUser(targetUserId, currentUserId);
+    } catch (e) {
+      print('👥 Unfollow by Username Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Check if a user is following another user (uses user_name for backward compatibility)
   static Future<bool> isFollowing(
     String currentUserName,
     String targetUserName,
   ) async {
     try {
       // Get the list of users that currentUser is following
-      final following = await getUserFollowing(currentUserName);
+      final following = await getUserFollowingByUsername(currentUserName);
       
       // Check if targetUserName is in the following list
       final isFollowing = following.any((user) => user['user_name'] == targetUserName);
@@ -429,12 +509,12 @@ class SocialService {
     }
   }
 
-  /// Get user points and achievements
-  static Future<Map<String, dynamic>> getUserPoints(String username) async {
+  /// Get user points and achievements (uses user_id)
+  static Future<Map<String, dynamic>> getUserPoints(String userId) async {
     try {
-      final uri = Uri.parse('$baseUrl/social/users/$username/points');
+      final uri = Uri.parse('$baseUrl/social/users/$userId/points');
 
-      print('🏆 Getting user points for: $username');
+      print('🏆 Getting user points for user ID: $userId');
 
       final response = await http.get(
         uri,
@@ -452,6 +532,21 @@ class SocialService {
       }
     } catch (e) {
       print('🏆 User Points Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get user points and achievements (uses user_name for backward compatibility)
+  /// @deprecated Use getUserPoints() with user_id instead
+  static Future<Map<String, dynamic>> getUserPointsByUsername(String username) async {
+    try {
+      final userId = await getUserIdFromUsername(username);
+      if (userId == null) {
+        throw Exception('Could not find user ID for username: $username');
+      }
+      return await getUserPoints(userId);
+    } catch (e) {
+      print('🏆 User Points by Username Error: $e');
       rethrow;
     }
   }
@@ -540,20 +635,20 @@ class SocialService {
     }
   }
 
-  /// Get leaderboard data
+  /// Get leaderboard data (uses user_id)
   static Future<List<Map<String, dynamic>>> getLeaderboard(
-    String username, {
+    String userId, {
     int limit = 50,
   }) async {
     try {
       final uri = Uri.parse('$baseUrl/social/leaderboard').replace(
         queryParameters: {
-          'user_id': username,
+          'user_id': userId,
           'limit': limit.toString(),
         },
       );
 
-      print('🏅 Getting leaderboard for: $username');
+      print('🏅 Getting leaderboard for user ID: $userId');
 
       final response = await http.get(
         uri,
@@ -572,6 +667,24 @@ class SocialService {
       }
     } catch (e) {
       print('🏅 Leaderboard Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get leaderboard data (uses user_name for backward compatibility)
+  /// @deprecated Use getLeaderboard() with user_id instead
+  static Future<List<Map<String, dynamic>>> getLeaderboardByUsername(
+    String username, {
+    int limit = 50,
+  }) async {
+    try {
+      final userId = await getUserIdFromUsername(username);
+      if (userId == null) {
+        throw Exception('Could not find user ID for username: $username');
+      }
+      return await getLeaderboard(userId, limit: limit);
+    } catch (e) {
+      print('🏅 Leaderboard by Username Error: $e');
       rethrow;
     }
   }
@@ -676,21 +789,161 @@ class SocialService {
     }
   }
 
-  /// Get user's followers
+  // ===== LEARNING CONTENT ENDPOINTS =====
+
+  /// Get user's learning content (uses user_id)
+  static Future<Map<String, dynamic>> getLearningContent(
+    String userId,
+    String viewerUserId, {
+    String contentType = 'all',
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/social/users/$userId/learning-content').replace(
+        queryParameters: {
+          'viewer_user_id': viewerUserId,
+          'content_type': contentType,
+        },
+      );
+
+      print('📚 Getting learning content for user ID: $userId, viewer: $viewerUserId');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      print('📚 Learning Content Response: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to load learning content: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('📚 Learning Content Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get user's vocabulary (uses user_id)
+  static Future<Map<String, dynamic>> getUserVocabulary(
+    String userId,
+    String viewerUserId,
+  ) async {
+    try {
+      final uri = Uri.parse('$baseUrl/social/users/$userId/vocabulary').replace(
+        queryParameters: {
+          'viewer_user_id': viewerUserId,
+        },
+      );
+
+      print('📖 Getting vocabulary for user ID: $userId, viewer: $viewerUserId');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      print('📖 Vocabulary Response: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to load vocabulary: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('📖 Vocabulary Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get user's study progress (uses user_id)
+  static Future<Map<String, dynamic>> getUserStudyProgress(
+    String userId,
+    String viewerUserId,
+  ) async {
+    try {
+      final uri = Uri.parse('$baseUrl/social/users/$userId/study-progress').replace(
+        queryParameters: {
+          'viewer_user_id': viewerUserId,
+        },
+      );
+
+      print('📊 Getting study progress for user ID: $userId, viewer: $viewerUserId');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      print('📊 Study Progress Response: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to load study progress: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('📊 Study Progress Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Save vocabulary word from another user
+  static Future<Map<String, dynamic>> saveVocabulary(
+    String vocabEntryId,
+    String userId,
+  ) async {
+    try {
+      final uri = Uri.parse('$baseUrl/social/vocabulary/$vocabEntryId/save').replace(
+        queryParameters: {
+          'user_id': userId,
+        },
+      );
+
+      print('💾 Saving vocabulary entry: $vocabEntryId for user ID: $userId');
+
+      final response = await http.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      print('💾 Save Vocabulary Response: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to save vocabulary: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('💾 Save Vocabulary Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get user's followers (uses user_id)
   static Future<List<Map<String, dynamic>>> getUserFollowers(
-    String username, {
+    String userId, {
     int page = 1,
     int limit = 20,
   }) async {
     try {
-      final uri = Uri.parse('$baseUrl/social/users/$username/followers').replace(
+      final uri = Uri.parse('$baseUrl/social/users/$userId/followers').replace(
         queryParameters: {
           'page': page.toString(),
           'limit': limit.toString(),
         },
       );
 
-      print('👥 Getting followers for: $username');
+      print('👥 Getting followers for user ID: $userId');
 
       final response = await http.get(
         uri,
@@ -713,21 +966,40 @@ class SocialService {
     }
   }
 
-  /// Get user's following
-  static Future<List<Map<String, dynamic>>> getUserFollowing(
+  /// Get user's followers (uses user_name for backward compatibility)
+  /// @deprecated Use getUserFollowers() with user_id instead
+  static Future<List<Map<String, dynamic>>> getUserFollowersByUsername(
     String username, {
     int page = 1,
     int limit = 20,
   }) async {
     try {
-      final uri = Uri.parse('$baseUrl/social/users/$username/following').replace(
+      final userId = await getUserIdFromUsername(username);
+      if (userId == null) {
+        throw Exception('Could not find user ID for username: $username');
+      }
+      return await getUserFollowers(userId, page: page, limit: limit);
+    } catch (e) {
+      print('👥 Followers by Username Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get user's following (uses user_id)
+  static Future<List<Map<String, dynamic>>> getUserFollowing(
+    String userId, {
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/social/users/$userId/following').replace(
         queryParameters: {
           'page': page.toString(),
           'limit': limit.toString(),
         },
       );
 
-      print('👥 Getting following for: $username');
+      print('👥 Getting following for user ID: $userId');
 
       final response = await http.get(
         uri,
@@ -746,6 +1018,25 @@ class SocialService {
       }
     } catch (e) {
       print('👥 Following Error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get user's following (uses user_name for backward compatibility)
+  /// @deprecated Use getUserFollowing() with user_id instead
+  static Future<List<Map<String, dynamic>>> getUserFollowingByUsername(
+    String username, {
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final userId = await getUserIdFromUsername(username);
+      if (userId == null) {
+        throw Exception('Could not find user ID for username: $username');
+      }
+      return await getUserFollowing(userId, page: page, limit: limit);
+    } catch (e) {
+      print('👥 Following by Username Error: $e');
       rethrow;
     }
   }

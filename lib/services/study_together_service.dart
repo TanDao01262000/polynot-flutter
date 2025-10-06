@@ -38,16 +38,42 @@ class StudyTogetherService {
     }
   }
   
-  /// Get Learning Discovery content
+  /// Get Learning Discovery content with optional filtering
   Future<LearningDiscoveryResponse> getLearningDiscovery(
     String userId, {
     String contentType = 'all',
     int limit = 10,
+    int page = 1,
+    String? levelFilter,
+    List<String>? userFilter,
+    String? languageFilter,
   }) async {
     try {
-      final uri = Uri.parse('$baseUrl/social/learning-discovery?user_id=$userId&content_type=$contentType&limit=$limit');
+      // Build query parameters
+      final queryParams = <String, String>{
+        'user_id': userId,
+        'content_type': contentType,
+        'limit': limit.toString(),
+        'page': page.toString(),
+      };
+
+      // Add optional filters
+      if (levelFilter != null && levelFilter.isNotEmpty) {
+        queryParams['level_filter'] = levelFilter;
+      }
+      
+      if (userFilter != null && userFilter.isNotEmpty) {
+        queryParams['user_filter'] = userFilter.join(',');
+      }
+      
+      if (languageFilter != null && languageFilter.isNotEmpty) {
+        queryParams['language_filter'] = languageFilter;
+      }
+
+      final uri = Uri.parse('$baseUrl/social/learning-discovery').replace(queryParameters: queryParams);
       
       print('🔍 Getting learning discovery for user: $userId');
+      print('🔍 Filters - Level: $levelFilter, Users: $userFilter, Language: $languageFilter');
       print('🔍 URL: $uri');
 
       final response = await http.get(

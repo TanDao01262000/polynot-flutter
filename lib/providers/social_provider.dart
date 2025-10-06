@@ -34,6 +34,11 @@ class SocialProvider with ChangeNotifier {
   bool _isLoadingStudyInsights = false;
   String? _studyInsightsError;
 
+  // User Points
+  UserPoints? _userPoints;
+  bool _isLoadingPoints = false;
+  String? _pointsError;
+
   // Trending Words
   List<TrendingWord> _trendingWords = [];
   bool _isLoadingTrendingWords = false;
@@ -59,6 +64,10 @@ class SocialProvider with ChangeNotifier {
   UserStudyInsights? get studyInsights => _studyInsights;
   bool get isLoadingStudyInsights => _isLoadingStudyInsights;
   String? get studyInsightsError => _studyInsightsError;
+
+  UserPoints? get userPoints => _userPoints;
+  bool get isLoadingPoints => _isLoadingPoints;
+  String? get pointsError => _pointsError;
 
   List<TrendingWord> get trendingWords => _trendingWords;
   bool get isLoadingTrendingWords => _isLoadingTrendingWords;
@@ -124,62 +133,65 @@ class SocialProvider with ChangeNotifier {
     }
   }
 
-  // Load leaderboard
-  Future<void> loadLeaderboard({required String userName, int limit = 50}) async {
+  // Load leaderboard (uses user_id)
+  Future<void> loadLeaderboard({required String userId, int limit = 50}) async {
+    _isLoadingLeaderboard = true;
+    _leaderboardError = null;
+    notifyListeners();
+
+    try {
+      print('🔐 Loading leaderboard for user ID: $userId');
+      
+      // Call the real backend API using SocialService
+      final leaderboardData = await SocialService.getLeaderboard(userId, limit: limit);
+      
+      print('🔐 Leaderboard data: $leaderboardData');
+      
+      _leaderboard = leaderboardData.map((entry) {
+        print('🔐 Processing entry: $entry');
+        return LeaderboardEntry(
+          rank: entry['rank'] ?? 0,
+          userName: entry['user_name'] ?? '',
+          totalPoints: entry['total_points'] ?? 0,
+          level: entry['level'] ?? 1,
+          badges: List<String>.from(entry['badges'] ?? []),
+          streakDays: entry['streak_days'] ?? 0,
+          avatarUrl: entry['avatar_url'],
+        );
+      }).toList();
+      
+      print('🔐 Leaderboard loaded: ${_leaderboard.length} entries');
+      
+      _isLoadingLeaderboard = false;
+      notifyListeners();
+    } catch (e) {
+      print('🔐 Error loading leaderboard: $e');
+      _leaderboardError = e.toString();
+      _isLoadingLeaderboard = false;
+      notifyListeners();
+    }
+  }
+
+  // Load leaderboard (uses user_name for backward compatibility)
+  /// @deprecated Use loadLeaderboard() with user_id instead
+  Future<void> loadLeaderboardByUsername({required String userName, int limit = 50}) async {
     _isLoadingLeaderboard = true;
     _leaderboardError = null;
     notifyListeners();
 
     try {
       print('🔐 Loading leaderboard for user: $userName');
-      print('🔐 API URL: $_baseUrl/social/leaderboard?user_name=$userName&limit=$limit');
       
-      // Call the real backend API
-      final response = await http.get(
-        Uri.parse('$_baseUrl/social/leaderboard?user_name=$userName&limit=$limit'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 10));
-
-      print('🔐 Response status: ${response.statusCode}');
-      print('🔐 Response body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        print('🔐 Parsed data: $data');
-        
-        if (data['entries'] != null) {
-          final leaderboardData = data['entries'] as List<dynamic>;
-          print('🔐 Leaderboard data: $leaderboardData');
-          
-          _leaderboard = leaderboardData.map((entry) {
-            print('🔐 Processing entry: $entry');
-            return LeaderboardEntry(
-              rank: entry['rank'] ?? 0,
-              userName: entry['user_name'] ?? '',
-              totalPoints: entry['total_points'] ?? 0,
-              level: entry['level'] ?? 1,
-              badges: List<String>.from(entry['badges'] ?? []),
-              streakDays: entry['streak_days'] ?? 0,
-              avatarUrl: entry['avatar_url'],
-            );
-          }).toList();
-          
-          print('🔐 Leaderboard loaded: ${_leaderboard.length} entries');
-        } else {
-          print('🔐 No leaderboard data in response');
-          _leaderboard = [];
-        }
-      } else {
-        print('🔐 API Error: ${response.statusCode} - ${response.body}');
-        throw Exception('Failed to load leaderboard: ${response.statusCode} - ${response.body}');
+      // Get user ID from username
+      final userId = await SocialService.getUserIdFromUsername(userName);
+      if (userId == null) {
+        throw Exception('Could not find user ID for username: $userName');
       }
       
-      _isLoadingLeaderboard = false;
-      notifyListeners();
+      // Use the new user_id based method
+      await loadLeaderboard(userId: userId, limit: limit);
     } catch (e) {
-      print('🔐 Error loading leaderboard: $e');
+      print('🔐 Error loading leaderboard by username: $e');
       _leaderboardError = e.toString();
       _isLoadingLeaderboard = false;
       notifyListeners();
@@ -279,8 +291,34 @@ class SocialProvider with ChangeNotifier {
     }
   }
 
-  // Load study insights
-  Future<void> loadStudyInsights(String userName) async {
+  // Load user points (uses user_id)
+  Future<void> loadUserPoints(String userId) async {
+    _isLoadingPoints = true;
+    _pointsError = null;
+    notifyListeners();
+
+    try {
+      print('🔐 Loading user points for user ID: $userId');
+      
+      // Call the real backend API using SocialService
+      final pointsData = await SocialService.getUserPoints(userId);
+      
+      _userPoints = UserPoints.fromJson(pointsData);
+      
+      print('🔐 User points loaded successfully');
+      
+      _isLoadingPoints = false;
+      notifyListeners();
+    } catch (e) {
+      print('🔐 Error loading user points: $e');
+      _pointsError = e.toString();
+      _isLoadingPoints = false;
+      notifyListeners();
+    }
+  }
+
+  // Load study insights (uses user_id)
+  Future<void> loadStudyInsights(String userId) async {
     _isLoadingStudyInsights = true;
     _studyInsightsError = null;
     notifyListeners();
@@ -288,7 +326,7 @@ class SocialProvider with ChangeNotifier {
     try {
       // Call the real backend API
       final response = await http.get(
-        Uri.parse('$_baseUrl/study/users/$userName/insights'),
+        Uri.parse('$_baseUrl/study/users/$userId/insights'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -298,7 +336,7 @@ class SocialProvider with ChangeNotifier {
         final data = jsonDecode(response.body);
         
         _studyInsights = UserStudyInsights(
-          userName: data['user_name'] ?? userName,
+          userName: data['user_name'] ?? userId, // Fallback to userId if user_name not provided
           wordsStudiedToday: data['words_studied_today'] ?? 0,
           wordsStudiedThisWeek: data['words_studied_this_week'] ?? 0,
           totalWordsStudied: data['total_words_studied'] ?? 0,
@@ -309,7 +347,7 @@ class SocialProvider with ChangeNotifier {
           levelRank: data['level_rank'] ?? 0,
         );
         
-        print('🔐 Study insights loaded for user: $userName');
+        print('🔐 Study insights loaded for user ID: $userId');
       } else {
         throw Exception('Failed to load study insights: ${response.statusCode}');
       }
@@ -318,6 +356,26 @@ class SocialProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('🔐 Error loading study insights: $e');
+      _studyInsightsError = e.toString();
+      _isLoadingStudyInsights = false;
+      notifyListeners();
+    }
+  }
+
+  // Load study insights (uses user_name for backward compatibility)
+  /// @deprecated Use loadStudyInsights() with user_id instead
+  Future<void> loadStudyInsightsByUsername(String userName) async {
+    try {
+      // Get user ID from username
+      final userId = await SocialService.getUserIdFromUsername(userName);
+      if (userId == null) {
+        throw Exception('Could not find user ID for username: $userName');
+      }
+      
+      // Use the new user_id based method
+      await loadStudyInsights(userId);
+    } catch (e) {
+      print('🔐 Error loading study insights by username: $e');
       _studyInsightsError = e.toString();
       _isLoadingStudyInsights = false;
       notifyListeners();
@@ -394,6 +452,37 @@ class SocialProvider with ChangeNotifier {
     }
   }
 
+  // Helper methods for user points
+  double getLevelProgressPercentage() {
+    if (_userPoints == null) return 0.0;
+    
+    final currentPoints = _userPoints!.totalPoints;
+    final nextLevelPoints = _userPoints!.nextLevelPoints;
+    final currentLevelPoints = _getCurrentLevelMinPoints(_userPoints!.level);
+    
+    final pointsInCurrentLevel = currentPoints - currentLevelPoints;
+    final pointsNeededForNextLevel = nextLevelPoints - currentLevelPoints;
+    
+    if (pointsNeededForNextLevel <= 0) return 100.0;
+    
+    return (pointsInCurrentLevel / pointsNeededForNextLevel) * 100.0;
+  }
+
+  String getLevelDisplayName(int level) {
+    if (level >= 10) return 'Expert';
+    if (level >= 8) return 'Advanced';
+    if (level >= 6) return 'Intermediate';
+    if (level >= 4) return 'Beginner+';
+    if (level >= 2) return 'Beginner';
+    return 'Newcomer';
+  }
+
+  int _getCurrentLevelMinPoints(int level) {
+    // Simple calculation: each level requires 100 more points than the previous
+    if (level <= 1) return 0;
+    return (level - 1) * 100;
+  }
+
   // Clear all data
   void clearData() {
     _achievements.clear();
@@ -401,11 +490,13 @@ class SocialProvider with ChangeNotifier {
     _posts.clear();
     _trendingWords.clear();
     _studyInsights = null;
+    _userPoints = null;
     _achievementsError = null;
     _leaderboardError = null;
     _postsError = null;
     _trendingWordsError = null;
     _studyInsightsError = null;
+    _pointsError = null;
     notifyListeners();
   }
 }

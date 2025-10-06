@@ -40,9 +40,9 @@ class _GamificationScreenState extends State<GamificationScreen>
     
     if (userProvider.isLoggedIn && userProvider.currentUser != null) {
       await Future.wait([
-        // socialProvider.loadUserPoints(userProvider.currentUser!.userName), // TODO: Implement this method
+        socialProvider.loadUserPoints(userProvider.currentUser!.id),
         socialProvider.loadAchievements(userProvider.currentUser!.id),
-        socialProvider.loadLeaderboard(userName: userProvider.currentUser!.userName, limit: 20),
+        socialProvider.loadLeaderboard(userId: userProvider.currentUser!.id, limit: 20),
       ]);
     }
   }
@@ -181,7 +181,7 @@ class _GamificationScreenState extends State<GamificationScreen>
     return RefreshIndicator(
       onRefresh: () async {
         if (userProvider.currentUser != null) {
-          await socialProvider.loadUserPoints(userProvider.currentUser!.userName);
+          await socialProvider.loadUserPoints(userProvider.currentUser!.id);
         }
       },
       child: SingleChildScrollView(

@@ -293,6 +293,7 @@ class DiscoveryContent {
 
 /// Vocabulary Discovery Model
 class VocabularyDiscovery {
+  final String vocabEntryId;
   final String word;
   final String language;
   final String level;
@@ -303,6 +304,7 @@ class VocabularyDiscovery {
   final String difficulty;
 
   VocabularyDiscovery({
+    required this.vocabEntryId,
     required this.word,
     required this.language,
     required this.level,
@@ -314,11 +316,25 @@ class VocabularyDiscovery {
   });
 
   factory VocabularyDiscovery.fromJson(Map<String, dynamic> json) {
+    // Handle language field which can be either a String or List<String>
+    String language = '';
+    if (json['language'] != null) {
+      if (json['language'] is List) {
+        // If it's a list, join the languages with comma
+        final languageList = json['language'] as List;
+        language = languageList.map((e) => e.toString()).join(', ');
+      } else {
+        // If it's a string, use it directly
+        language = json['language'].toString();
+      }
+    }
+
     return VocabularyDiscovery(
+      vocabEntryId: json['vocab_entry_id'] ?? '',
       word: json['word'] ?? '',
-      language: json['language'] ?? '',
+      language: language,
       level: json['level'] ?? '',
-      context: json['context'] ?? '',
+      context: json['context'] ?? json['translation'] ?? '', // Use translation as context if context is not available
       authorName: json['author_name'] ?? '',
       authorAvatar: json['author_avatar'],
       studiedAt: app_date_utils.DateUtils.parseDate(json['studied_at']),
@@ -328,6 +344,7 @@ class VocabularyDiscovery {
 
   Map<String, dynamic> toJson() {
     return {
+      'vocab_entry_id': vocabEntryId,
       'word': word,
       'language': language,
       'level': level,

@@ -26,7 +26,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     
     if (userProvider.isLoggedIn && userProvider.currentUser != null) {
       await socialProvider.loadLeaderboard(
-        userName: userProvider.currentUser!.userName,
+        userId: userProvider.currentUser!.id,
         limit: 50,
       );
     }
