@@ -5,6 +5,7 @@ import '../models/partner.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/functional_button.dart';
 import '../services/chat_service.dart';
+import '../services/activity_service.dart';
 import '../providers/user_provider.dart';
 import 'message_detail_screen.dart';
 
@@ -124,6 +125,13 @@ class _ChatPageState extends State<ChatPage> {
         text,
         partnerId: widget.partner.id,
         userName: userName,
+      );
+      
+      // Record conversation activity for streak tracking
+      await ActivityService.recordConversationMessage(
+        userId: currentUser!.id,
+        partnerName: widget.partner.name,
+        messageLength: text.length,
       );
       
       setState(() {

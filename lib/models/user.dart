@@ -64,9 +64,19 @@ class User {
     }
 
     try {
+      print('🔍 User.fromJson: Raw JSON = $json');
+      print('🔍 User.fromJson: id field = ${json['id']} (type: ${json['id'].runtimeType})');
+      print('🔍 User.fromJson: user_name field = ${json['user_name']} (type: ${json['user_name'].runtimeType})');
+      
+      final userId = json['id']?.toString() ?? '';
+      final userName = json['user_name']?.toString() ?? '';
+      
+      print('🔍 User.fromJson: Parsed userId = $userId');
+      print('🔍 User.fromJson: Parsed userName = $userName');
+      
       final user = User(
-        id: json['id']?.toString() ?? '',
-        userName: json['user_name']?.toString() ?? '',
+        id: userId,
+        userName: userName,
         userLevel: json['user_level']?.toString() ?? '',
         targetLanguage: json['target_language']?.toString(),
         email: json['email']?.toString() ?? '',

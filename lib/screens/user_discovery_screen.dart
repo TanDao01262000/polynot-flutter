@@ -38,10 +38,10 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> with TickerPr
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     if (!userProvider.isLoggedIn || userProvider.currentUser == null) return;
 
-    final currentUser = userProvider.currentUser!.userName;
+    final currentUserId = userProvider.currentUser!.id;
     
     try {
-      final following = await SocialService.getUserFollowing(currentUser);
+      final following = await SocialService.getUserFollowing(currentUserId);
       final followingUsernames = following.map((user) => user['user_name'] as String).toSet();
       
       // Update follow status without triggering setState (will be done by caller)
@@ -177,7 +177,7 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> with TickerPr
         return;
       }
 
-      final currentUser = userProvider.currentUser!.userName;
+      final currentUserId = userProvider.currentUser!.id;
       final isCurrentlyFollowing = _followStatus[targetUserName] ?? false;
       
       // Show loading state
@@ -185,18 +185,24 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> with TickerPr
         _followStatus[targetUserName] = !isCurrentlyFollowing; // Optimistically update UI
       });
 
-      final result = await SocialService.toggleFollow(
-        targetUserName,
-        currentUser,
+      // Find the target user's ID from the users list
+      final targetUser = _users.firstWhere(
+        (user) => user['user_name'] == targetUserName,
+        orElse: () => throw Exception('Target user not found'),
       );
+      final targetUserId = targetUser['user_id'];
+
+      final result = isCurrentlyFollowing 
+          ? await SocialService.unfollowUser(targetUserId, currentUserId)
+          : await SocialService.followUser(targetUserId, currentUserId);
 
       if (mounted) {
         // Update follow status based on actual response
         setState(() {
-          _followStatus[targetUserName] = result['following'] ?? !isCurrentlyFollowing;
+          _followStatus[targetUserName] = !isCurrentlyFollowing;
         });
 
-        final action = result['following'] == true ? 'followed' : 'unfollowed';
+        final action = !isCurrentlyFollowing ? 'followed' : 'unfollowed';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Successfully $action $targetUserName'),

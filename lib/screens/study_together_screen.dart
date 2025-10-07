@@ -4,6 +4,7 @@ import '../providers/user_provider.dart';
 import '../services/study_together_service.dart';
 import '../services/social_service.dart';
 import '../services/vocabulary_detail_service.dart';
+import '../services/activity_service.dart';
 import '../models/study_together_models.dart';
 import '../models/vocabulary_item.dart';
 import '../widgets/vocabulary_interaction_card.dart';
@@ -1230,6 +1231,15 @@ class _StudyTogetherScreenState extends State<StudyTogetherScreen> {
       Navigator.pop(context);
 
       if (vocabularyItem != null) {
+        // Record vocabulary study activity for streak tracking
+        if (userProvider.isLoggedIn && userProvider.currentUser != null) {
+          await ActivityService.recordVocabularyStudy(
+            userId: userProvider.currentUser!.id,
+            wordsStudied: 1,
+            vocabularyList: discovery.language,
+          );
+        }
+        
         // Show full vocabulary detail dialog
         _showVocabularyDetailDialog(vocabularyItem);
       } else {
@@ -1510,6 +1520,11 @@ class _StudyTogetherScreenState extends State<StudyTogetherScreen> {
     }
   }
 
+  // Helper method to validate UUID format
+  bool _isValidUUID(String value) {
+    final uuidRegex = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
+    return uuidRegex.hasMatch(value);
+  }
 
   void _extractAvailableFriends() async {
     if (_data == null) return;
@@ -1521,6 +1536,31 @@ class _StudyTogetherScreenState extends State<StudyTogetherScreen> {
       }
 
       print('👥 StudyTogetherScreen: Fetching friends list for filtering...');
+      print('👥 StudyTogetherScreen: Current user ID: ${userProvider.currentUser!.id}');
+      print('👥 StudyTogetherScreen: Current user name: ${userProvider.currentUser!.userName}');
+      
+      // 🔧 FIX: Check if user ID is a username instead of UUID
+      if (!_isValidUUID(userProvider.currentUser!.id)) {
+        print('🚨 UUID ISSUE DETECTED: user.id contains username "${userProvider.currentUser!.id}" instead of UUID');
+        print('🔧 Clearing cached user data and reloading...');
+        
+        // Clear cached user data
+        await userProvider.clearCachedUserData();
+        
+        // Force logout and re-authentication
+        await userProvider.logout();
+        
+        // Show error message to user
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Authentication data corrupted. Please log in again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
       
       // Get the actual friends list from the API
       final following = await SocialService.getFollowing(userProvider.currentUser!.id);

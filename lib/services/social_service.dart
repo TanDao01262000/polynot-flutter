@@ -8,30 +8,18 @@ class SocialService {
 
   // ===== SOCIAL DISCOVERY ENDPOINTS =====
   
-  /// Get user ID from username
+  /// Get user ID from username - DEPRECATED: Use user_id directly
+  /// This method is kept for backward compatibility but should not be used
+  /// All new code should use user_id directly instead of username
   static Future<String?> getUserIdFromUsername(String userName) async {
     try {
-      final uri = Uri.parse('$baseUrl/social/users/$userName/profile');
+      print('⚠️ DEPRECATED: Attempting to get user ID for username: $userName');
+      print('⚠️ WARNING: Backend no longer supports username-based lookups');
+      print('❌ Cannot convert username to user_id - backend requires user_id directly');
       
-      print('🆔 Getting user ID for username: $userName');
-      
-      final response = await http.get(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 10));
-      
-      print('🆔 User Profile Response: ${response.statusCode}');
-      print('🆔 User Profile Body: ${response.body}');
-      
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['user_id'] ?? data['id'];
-      } else {
-        print('🆔 User profile not found for: $userName');
-        return null;
-      }
+      // Since the backend no longer supports username-based profile lookups,
+      // we need to return null and let the calling code handle this
+      return null;
     } catch (e) {
       print('🆔 Error getting user ID: $e');
       return null;
@@ -103,7 +91,7 @@ class SocialService {
   
   /// Get posts from a specific user
   static Future<Map<String, dynamic>> getUserPosts(
-    String userName, {
+    String userId, {
     String? currentUser,
     int page = 1,
     int limit = 20,
@@ -115,7 +103,7 @@ class SocialService {
       };
       if (currentUser != null) params['current_user'] = currentUser;
       
-      final uri = Uri.parse('$baseUrl/social/users/$userName/posts').replace(
+      final uri = Uri.parse('$baseUrl/social/users/$userId/posts').replace(
         queryParameters: params,
       );
       
@@ -763,11 +751,11 @@ class SocialService {
   }
 
   /// Get user's social profile
-  static Future<Map<String, dynamic>> getUserSocialProfile(String username) async {
+  static Future<Map<String, dynamic>> getUserSocialProfile(String userId) async {
     try {
-      final uri = Uri.parse('$baseUrl/social/users/$username/profile');
+      final uri = Uri.parse('$baseUrl/social/users/$userId/profile');
 
-      print('👤 Getting social profile for: $username');
+      print('👤 Getting social profile for: $userId');
 
       final response = await http.get(
         uri,

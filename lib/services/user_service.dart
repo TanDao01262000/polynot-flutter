@@ -199,6 +199,11 @@ class UserService {
           throw Exception('Null response from auth endpoint');
         }
         
+        print('🔍 Raw login response data: $jsonData');
+        print('🔍 User object from response: ${jsonData['user']}');
+        print('🔍 User ID from response: ${jsonData['user']['id']}');
+        print('🔍 User name from response: ${jsonData['user']['user_name']}');
+        
         print('🔍 DEBUG: About to parse LoginResponse from JSON');
         print('🔍 DEBUG: JSON keys: ${jsonData.keys.toList()}');
         print('🔍 DEBUG: user data type: ${jsonData['user']?.runtimeType}');

@@ -7,6 +7,7 @@ import '../providers/user_provider.dart';
 import '../providers/tts_provider.dart';
 import '../widgets/vocabulary_interaction_card.dart';
 import '../utils/app_utils.dart';
+import '../services/activity_service.dart';
 import 'vocabulary_generation_screen.dart';
 import 'dart:async';
 
@@ -420,7 +421,7 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
                           onHide: () => item.isHidden 
                               ? provider.unhideVocabulary(item.id)
                               : provider.hideVocabulary(item.id),
-                          onReview: () {
+                          onReview: () async {
                             // Get the current item state from the provider
                             final currentItem = provider.vocabularyListItems.firstWhere(
                               (i) => i.id == item.id,
@@ -430,6 +431,16 @@ class _VocabularyListScreenState extends State<VocabularyListScreen> {
                               provider.unmarkAsReviewed(item.id);
                             } else {
                               provider.markAsReviewed(item.id);
+                              
+                              // Record vocabulary study activity for streak tracking
+                              final userProvider = Provider.of<UserProvider>(context, listen: false);
+                              if (userProvider.isLoggedIn && userProvider.currentUser != null) {
+                                await ActivityService.recordVocabularyStudy(
+                                  userId: userProvider.currentUser!.id,
+                                  wordsStudied: 1,
+                                  vocabularyList: item.category,
+                                );
+                              }
                             }
                           },
                           onAddNote: (note) => provider.addNote(item.id, note),

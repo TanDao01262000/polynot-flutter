@@ -718,8 +718,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 children: [
                   Expanded(
                     child: _buildStatCard(
-                      'Streak Days',
-                      statistics.streakDays.toString(),
+                      'Current Streak',
+                      '${statistics.streakDays} day${statistics.streakDays == 1 ? '' : 's'}',
                       Icons.local_fire_department,
                       Colors.orange,
                     ),
@@ -780,7 +780,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Last Active: ${_formatLastLogin(statistics.lastLogin)}',
+                      'Last Login: ${_formatLastLogin(statistics.lastLogin)}',
                       style: TextStyle(
                         color: Colors.grey.shade600,
                         fontSize: 14,

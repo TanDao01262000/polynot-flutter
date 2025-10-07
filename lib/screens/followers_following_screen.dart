@@ -44,6 +44,14 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen>
     super.dispose();
   }
 
+  /// Check if a string is a valid UUID
+  bool _isValidUUID(String value) {
+    final uuidRegex = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    );
+    return uuidRegex.hasMatch(value);
+  }
+
   Future<void> _loadData() async {
     await Future.wait([
       _loadFollowers(),
@@ -58,7 +66,22 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen>
     });
 
     try {
-      final response = await SocialService.getFollowers(widget.targetUserName);
+      // Convert username to user_id if needed
+      String userId = widget.targetUserName;
+      if (!_isValidUUID(userId)) {
+        // If it's not a UUID, try to get user_id from username using the deprecated method
+        print('🔄 Converting username "$userId" to user_id...');
+        final convertedUserId = await SocialService.getUserIdFromUsername(userId);
+        if (convertedUserId != null) {
+          userId = convertedUserId;
+          print('✅ Converted to user_id: $userId');
+        } else {
+          print('❌ Failed to convert username to user_id');
+          throw Exception('Could not find user_id for username: $userId');
+        }
+      }
+      
+      final response = await SocialService.getFollowers(userId);
       setState(() {
         _followers = List<Map<String, dynamic>>.from(response['followers'] ?? []);
         _isLoadingFollowers = false;
@@ -79,7 +102,22 @@ class _FollowersFollowingScreenState extends State<FollowersFollowingScreen>
     });
 
     try {
-      final response = await SocialService.getFollowing(widget.targetUserName);
+      // Convert username to user_id if needed
+      String userId = widget.targetUserName;
+      if (!_isValidUUID(userId)) {
+        // If it's not a UUID, try to get user_id from username using the deprecated method
+        print('🔄 Converting username "$userId" to user_id...');
+        final convertedUserId = await SocialService.getUserIdFromUsername(userId);
+        if (convertedUserId != null) {
+          userId = convertedUserId;
+          print('✅ Converted to user_id: $userId');
+        } else {
+          print('❌ Failed to convert username to user_id');
+          throw Exception('Could not find user_id for username: $userId');
+        }
+      }
+      
+      final response = await SocialService.getFollowing(userId);
       setState(() {
         _following = List<Map<String, dynamic>>.from(response['following'] ?? []);
         _isLoadingFollowing = false;

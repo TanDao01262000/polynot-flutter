@@ -424,6 +424,17 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Clear cached user data (for fixing UUID issues)
+  Future<void> clearCachedUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_userDataKey);
+      print('🔐 Cached user data cleared');
+    } catch (e) {
+      print('🔐 Failed to clear cached user data: $e');
+    }
+  }
+
   // Get user level display name
   String getUserLevelDisplayName() {
     if (_currentUser == null) return '';
