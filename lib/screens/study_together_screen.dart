@@ -11,6 +11,7 @@ import '../widgets/vocabulary_interaction_card.dart';
 import '../widgets/vocabulary_discovery_simple_card.dart';
 import '../widgets/vocabulary_filter_widget.dart';
 import '../utils/date_utils.dart' as app_date_utils;
+import '../utils/app_utils.dart';
 import 'user_profile_screen.dart';
 
 class StudyTogetherScreen extends StatefulWidget {
@@ -46,6 +47,11 @@ class _StudyTogetherScreenState extends State<StudyTogetherScreen> {
   bool _hasMoreVocabulary = true;
   bool _isLoadingMoreVocabulary = false;
   int _currentVocabularyPage = 1;
+  
+  // Save vocabulary state
+  Set<String> _savingItems = {};
+  Set<String> _savedItems = {};
+  Set<String> _alreadySavedItems = {}; // Track items already in user's vocabulary list
 
   @override
   void initState() {
@@ -586,9 +592,14 @@ class _StudyTogetherScreenState extends State<StudyTogetherScreen> {
                     }
                     
                     final discovery = _vocabularyDiscoveries[index];
+                    final isAlreadySaved = _alreadySavedItems.contains(discovery.vocabEntryId);
                     return VocabularyDiscoverySimpleCard(
                       discovery: discovery,
                       onTap: () => _showVocabularyDetailFromDiscovery(discovery),
+                      onSave: isAlreadySaved ? null : () => _saveVocabularyItem(discovery),
+                      isSaving: _savingItems.contains(discovery.vocabEntryId),
+                      isSaved: _savedItems.contains(discovery.vocabEntryId) || isAlreadySaved,
+                      isAlreadyInList: isAlreadySaved,
                     );
                   },
                 ),
@@ -1180,6 +1191,9 @@ class _StudyTogetherScreenState extends State<StudyTogetherScreen> {
         _hasMoreVocabulary = followingResponse.discoveryContent.vocabularyDiscoveries.length == limit;
       });
 
+      // Check which items are already in user's vocabulary list
+      await _checkAlreadySavedItems();
+
       print('📚 StudyTogetherScreen: Loaded ${followingResponse.discoveryContent.vocabularyDiscoveries.length} vocabulary discoveries (total: ${_vocabularyDiscoveries.length})');
     } catch (e) {
       print('📚 StudyTogetherScreen: Error loading vocabulary discoveries: $e');
@@ -1194,6 +1208,49 @@ class _StudyTogetherScreenState extends State<StudyTogetherScreen> {
   Future<void> _loadMoreVocabulary() async {
     if (_isLoadingMoreVocabulary || !_hasMoreVocabulary) return;
     await _loadVocabularyDiscoveries(reset: false);
+  }
+
+  // Check which vocabulary items are already in the user's vocabulary list
+  Future<void> _checkAlreadySavedItems() async {
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      
+      if (userProvider.currentUser == null) {
+        return;
+      }
+
+      final currentUserId = userProvider.currentUser!.id;
+      final alreadySaved = <String>{};
+
+      // Check each vocabulary discovery to see if it's already in user's list
+      for (final discovery in _vocabularyDiscoveries) {
+        try {
+          // Make a test save request to check if item is already saved
+          final result = await SocialService.saveVocabulary(
+            discovery.vocabEntryId,
+            currentUserId,
+          );
+
+          // If the response indicates the item is already saved
+          if (result['saved'] == false && 
+              (result['message']?.toString().contains('already in your list') == true)) {
+            alreadySaved.add(discovery.vocabEntryId);
+            print('📚 Item "${discovery.word}" is already in user\'s vocabulary list');
+          }
+        } catch (e) {
+          // If there's an error checking, we'll assume it's not saved
+          print('📚 Error checking if "${discovery.word}" is saved: $e');
+        }
+      }
+
+      setState(() {
+        _alreadySavedItems = alreadySaved;
+      });
+
+      print('📚 Found ${alreadySaved.length} items already in user\'s vocabulary list');
+    } catch (e) {
+      print('📚 Error checking already saved items: $e');
+    }
   }
 
 
@@ -1625,6 +1682,81 @@ class _StudyTogetherScreenState extends State<StudyTogetherScreen> {
       });
       
       print('👥 StudyTogetherScreen: Fallback - extracted ${_availableFriends.length} friends from study data');
+    }
+  }
+
+  Future<void> _saveVocabularyItem(VocabularyDiscovery discovery) async {
+    if (_savingItems.contains(discovery.vocabEntryId)) return;
+    
+    setState(() {
+      _savingItems.add(discovery.vocabEntryId);
+    });
+
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      
+      if (userProvider.currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Use the actual user ID (UUID), not the JWT token
+      final currentUserId = userProvider.currentUser!.id;
+
+      print('💾 Saving vocabulary item: ${discovery.word} (${discovery.vocabEntryId})');
+      print('💾 Using user ID: $currentUserId');
+      
+      final result = await SocialService.saveVocabulary(
+        discovery.vocabEntryId,
+        currentUserId,
+      );
+
+      print('💾 Save result: $result');
+      print('💾 Save result type: ${result.runtimeType}');
+      print('💾 Save result keys: ${result.keys.toList()}');
+      print('💾 Save result[\'saved\']: ${result['saved']}');
+
+      // Check for successful save - handle both boolean true and string "true"
+      final saved = result['saved'];
+      final isSaved = saved == true || saved == 'true' || saved == 1;
+      
+      if (isSaved) {
+        final message = result['message'] ?? 'Saved "${discovery.word}" to your vocabulary list!';
+        AppUtils.showSuccessSnackBar(context, message);
+        
+        // Update the saved items set
+        setState(() {
+          _savedItems.add(discovery.vocabEntryId);
+          _alreadySavedItems.add(discovery.vocabEntryId); // Also mark as already in list
+        });
+      } else {
+        final errorMessage = result['message'] ?? 'Failed to save vocabulary item';
+        
+        // Check if the error is because the item is already in the list
+        if (errorMessage.contains('already in your list') || errorMessage.contains('already exists')) {
+          // Show info message instead of error
+          AppUtils.showWarningSnackBar(context, '"${discovery.word}" is already in your vocabulary list!');
+          
+          // Mark as already in list
+          setState(() {
+            _alreadySavedItems.add(discovery.vocabEntryId);
+          });
+        } else {
+          throw Exception(errorMessage);
+        }
+      }
+    } catch (e) {
+      print('💾 Error saving vocabulary item: $e');
+      
+      // Check if this is a token expiration error
+      if (e.toString().contains('TOKEN_EXPIRED') || e.toString().contains('token is expired')) {
+        AppUtils.showErrorSnackBar(context, 'Session expired. Please log in again.');
+      } else {
+        AppUtils.showErrorSnackBar(context, 'Failed to save "${discovery.word}": ${e.toString()}');
+      }
+    } finally {
+      setState(() {
+        _savingItems.remove(discovery.vocabEntryId);
+      });
     }
   }
 

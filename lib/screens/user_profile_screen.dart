@@ -11,11 +11,13 @@ import 'voice_cloning_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   final String? targetUserName; // If null, shows current user's profile
+  final String? targetUserId; // User ID for the target user
   final bool isViewingOtherProfile; // If true, shows read-only view
   
   const UserProfileScreen({
     super.key,
     this.targetUserName,
+    this.targetUserId,
     this.isViewingOtherProfile = false,
   });
 

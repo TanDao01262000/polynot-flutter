@@ -192,7 +192,7 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> with TickerPr
       );
       final targetUserId = targetUser['user_id'];
 
-      final result = isCurrentlyFollowing 
+      isCurrentlyFollowing 
           ? await SocialService.unfollowUser(targetUserId, currentUserId)
           : await SocialService.followUser(targetUserId, currentUserId);
 
@@ -236,12 +236,19 @@ class _UserDiscoveryScreenState extends State<UserDiscoveryScreen> with TickerPr
     }
 
     final isOwnProfile = userName == userProvider.currentUser!.userName;
+    
+    // Find the user data to get the user_id
+    final userData = _users.firstWhere(
+      (user) => user['user_name'] == userName,
+      orElse: () => <String, dynamic>{},
+    );
 
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => UserProfileScreen(
           targetUserName: isOwnProfile ? null : userName,
+          targetUserId: isOwnProfile ? null : userData['user_id']?.toString(),
           isViewingOtherProfile: !isOwnProfile,
         ),
       ),

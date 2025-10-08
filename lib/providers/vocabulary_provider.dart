@@ -155,9 +155,21 @@ class VocabularyProvider extends ChangeNotifier {
       print('Provider: Loaded ${newItems.length} items. Total: ${_vocabularyListItems.length}');
       print('Provider: Response success: ${response.success}, message: ${response.message}');
     } catch (e) {
-      _error = e.toString();
-      _lastListResponse = null;
       print('Provider: Error loading vocabulary list: $e');
+      
+      // Check if this is a token expiration error
+      if (e.toString().contains('TOKEN_EXPIRED') || 
+          e.toString().contains('token is expired') ||
+          e.toString().contains('Authentication failed') ||
+          e.toString().contains('401')) {
+        
+        _error = 'Session expired. Please log in again.';
+        print('Provider: Token expiration detected - setting user-friendly error message');
+      } else {
+        _error = e.toString();
+      }
+      
+      _lastListResponse = null;
     } finally {
       _isLoadingList = false;
       notifyListeners();
@@ -634,7 +646,20 @@ class VocabularyProvider extends ChangeNotifier {
       _vocabularyItems = response.generatedVocabulary;
       _error = null;
     } catch (e) {
-      _error = e.toString();
+      print('Provider: Error generating vocabulary: $e');
+      
+      // Check if this is a token expiration error
+      if (e.toString().contains('TOKEN_EXPIRED') || 
+          e.toString().contains('token is expired') ||
+          e.toString().contains('Authentication failed') ||
+          e.toString().contains('401')) {
+        
+        _error = 'Session expired. Please log in again.';
+        print('Provider: Token expiration detected during generation - setting user-friendly error message');
+      } else {
+        _error = e.toString();
+      }
+      
       _vocabularyItems = [];
       _lastResponse = null;
       

@@ -4,11 +4,19 @@ import '../models/study_together_models.dart';
 class VocabularyDiscoverySimpleCard extends StatelessWidget {
   final VocabularyDiscovery discovery;
   final VoidCallback onTap;
+  final VoidCallback? onSave;
+  final bool isSaving;
+  final bool isSaved;
+  final bool isAlreadyInList;
 
   const VocabularyDiscoverySimpleCard({
     super.key,
     required this.discovery,
     required this.onTap,
+    this.onSave,
+    this.isSaving = false,
+    this.isSaved = false,
+    this.isAlreadyInList = false,
   });
 
   @override
@@ -28,7 +36,7 @@ class VocabularyDiscoverySimpleCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Word and author info
+              // Word and author info with save button
               Row(
                 children: [
                   Expanded(
@@ -40,6 +48,54 @@ class VocabularyDiscoverySimpleCard extends StatelessWidget {
                         fontSize: 24,
                       ),
                     ),
+                  ),
+                  // Save button or status indicator
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    child: isAlreadyInList
+                        ? Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade100,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.orange.shade300),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle, color: Colors.orange.shade600, size: 16),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'In List',
+                                  style: TextStyle(
+                                    color: Colors.orange.shade700,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : onSave != null
+                            ? IconButton(
+                                onPressed: isSaving ? null : onSave,
+                                icon: isSaved 
+                                    ? Icon(Icons.check_circle, color: Colors.green.shade600, size: 20)
+                                    : isSaving
+                                        ? const SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                          )
+                                        : Icon(Icons.bookmark_add_outlined, color: Colors.blue.shade600, size: 20),
+                                tooltip: isSaved ? 'Saved to your vocabulary' : 'Save to your vocabulary',
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                              )
+                            : const SizedBox.shrink(),
                   ),
                   // Author info
                   Container(

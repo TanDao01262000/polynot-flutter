@@ -5,6 +5,7 @@ import 'create_post_screen.dart';
 import 'personalized_feed_screen.dart';
 import 'public_feed_screen.dart';
 import 'study_together_screen.dart';
+import 'user_discovery_screen.dart';
 
 class SocialTabScreen extends StatefulWidget {
   const SocialTabScreen({super.key});
@@ -51,6 +52,20 @@ class _SocialTabScreenState extends State<SocialTabScreen> with TickerProviderSt
             centerTitle: true,
             backgroundColor: Colors.white,
             elevation: 0,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.search, color: Color(0xFF5D6D7E)),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const UserDiscoveryScreen(),
+                    ),
+                  );
+                },
+                tooltip: 'Discover Users',
+              ),
+            ],
             bottom: TabBar(
               controller: _tabController,
               indicatorColor: const Color(0xFF3498DB),
