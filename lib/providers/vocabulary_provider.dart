@@ -6,6 +6,7 @@ import '../models/generate_response.dart';
 import '../models/vocabulary_category.dart';
 import '../services/vocabulary_service.dart';
 import '../services/error_handler_service.dart';
+import 'user_provider.dart';
 
 class VocabularyProvider extends ChangeNotifier {
   List<VocabularyItem> _vocabularyItems = [];
@@ -22,6 +23,7 @@ class VocabularyProvider extends ChangeNotifier {
   bool _hasMore = true;
   String? _currentUserId;
   Set<String> _savingItems = {};
+  UserProvider? _userProvider; // Reference to UserProvider for token refresh
   
   // Multiple topics generation parameters
   List<String>? _lastMultipleTopics;
@@ -61,9 +63,10 @@ class VocabularyProvider extends ChangeNotifier {
   }
 
   // Set session token for authenticated requests
-  void setSessionToken(String sessionToken) {
+  void setSessionToken(String sessionToken, {UserProvider? userProvider}) {
     print('🔐 VocabularyProvider: Setting session token: ${sessionToken.substring(0, 20)}...');
     _currentUserId = sessionToken; // Using _currentUserId to store session token for now
+    _userProvider = userProvider; // Store reference for auto token refresh
     notifyListeners();
   }
 
@@ -152,9 +155,21 @@ class VocabularyProvider extends ChangeNotifier {
       print('Provider: Loaded ${newItems.length} items. Total: ${_vocabularyListItems.length}');
       print('Provider: Response success: ${response.success}, message: ${response.message}');
     } catch (e) {
-      _error = e.toString();
-      _lastListResponse = null;
       print('Provider: Error loading vocabulary list: $e');
+      
+      // Check if this is a token expiration error
+      if (e.toString().contains('TOKEN_EXPIRED') || 
+          e.toString().contains('token is expired') ||
+          e.toString().contains('Authentication failed') ||
+          e.toString().contains('401')) {
+        
+        _error = 'Session expired. Please log in again.';
+        print('Provider: Token expiration detected - setting user-friendly error message');
+      } else {
+        _error = e.toString();
+      }
+      
+      _lastListResponse = null;
     } finally {
       _isLoadingList = false;
       notifyListeners();
@@ -623,12 +638,28 @@ class VocabularyProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await VocabularyService.generateSingleTopic(request);
+      final response = await VocabularyService.generateSingleTopic(
+        request,
+        userProvider: _userProvider,
+      );
       _lastResponse = response;
       _vocabularyItems = response.generatedVocabulary;
       _error = null;
     } catch (e) {
-      _error = e.toString();
+      print('Provider: Error generating vocabulary: $e');
+      
+      // Check if this is a token expiration error
+      if (e.toString().contains('TOKEN_EXPIRED') || 
+          e.toString().contains('token is expired') ||
+          e.toString().contains('Authentication failed') ||
+          e.toString().contains('401')) {
+        
+        _error = 'Session expired. Please log in again.';
+        print('Provider: Token expiration detected during generation - setting user-friendly error message');
+      } else {
+        _error = e.toString();
+      }
+      
       _vocabularyItems = [];
       _lastResponse = null;
       
@@ -687,6 +718,7 @@ class VocabularyProvider extends ChangeNotifier {
         delaySeconds: delaySeconds,
         saveTopicList: saveTopicList,
         topicListName: topicListName,
+        userProvider: _userProvider,
       );
       _lastResponse = response;
       _vocabularyItems = response.generatedVocabulary;
@@ -730,6 +762,7 @@ class VocabularyProvider extends ChangeNotifier {
         phrasalVerbsPerBatch: phrasalVerbsPerBatch,
         idiomsPerBatch: idiomsPerBatch,
         delaySeconds: delaySeconds,
+        userProvider: _userProvider,
       );
       _lastResponse = response;
       _vocabularyItems = response.generatedVocabulary;

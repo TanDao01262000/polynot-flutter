@@ -9,6 +9,7 @@ import '../models/vocabulary_category.dart';
 import '../utils/string_extensions.dart';
 import 'auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../providers/user_provider.dart';
 
 class VocabularyService {
   static String get baseUrl {
@@ -40,28 +41,48 @@ class VocabularyService {
     return '${body.substring(0, max)}…(truncated)';
   }
 
-  // Get authenticated headers for API requests
-  static Future<Map<String, String>> _getAuthenticatedHeaders() async {
+  // Get authenticated headers for API requests with auto token refresh
+  static Future<Map<String, String>> _getAuthenticatedHeaders({UserProvider? userProvider}) async {
     try {
       _log('🔐 Attempting to get auth headers...');
       
-      // Try to get token directly from SharedPreferences (most reliable)
-      final prefs = await SharedPreferences.getInstance();
-      String? token = prefs.getString('user_session_token');
+      String? token;
       
-      _log('🔐 Direct SharedPreferences check: ${token != null ? "FOUND" : "NULL"}');
+      // Option 1: Use UserProvider for auto token refresh (PREFERRED)
+      if (userProvider != null) {
+        _log('🔐 Using UserProvider with auto token refresh...');
+        token = await userProvider.getValidAccessToken();
+        
+        if (token != null) {
+          _log('🔐 Got valid token from UserProvider (auto-refreshed if needed)');
+          _log('🔐 Token preview: ${token.substring(0, 30)}...');
+          return {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          };
+        } else {
+          _log('⚠️ UserProvider returned null token');
+        }
+      }
+      
+      // Option 2: Fallback to SharedPreferences (may be expired!)
+      _log('🔐 Falling back to SharedPreferences (no auto-refresh)...');
+      final prefs = await SharedPreferences.getInstance();
+      token = prefs.getString('user_session_token');
+      
+      _log('🔐 SharedPreferences check: ${token != null ? "FOUND" : "NULL"}');
       
       if (token != null) {
+        _log('⚠️ Warning: Using token from SharedPreferences without refresh check!');
         final headers = {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         };
-        _log('🔐 Auth headers created successfully from SharedPreferences');
         _log('🔐 Authorization header: ${headers['Authorization']!.substring(0, 30)}...');
         return headers;
       }
       
-      // Fallback to AuthService
+      // Option 3: Fallback to AuthService
       _log('🔐 Falling back to AuthService...');
       final headers = await AuthService.getAuthHeaders();
       _log('🔐 Auth headers retrieved from AuthService');
@@ -84,17 +105,6 @@ class VocabularyService {
     } else {
       return Exception('Failed to generate vocabulary: $statusCode $responseBody');
     }
-  }
-
-  // Check if response indicates token expiration
-  static bool _isTokenExpired(int statusCode, String responseBody) {
-    if (statusCode == 401) {
-      final body = responseBody.toLowerCase();
-      return body.contains('token is expired') || 
-             body.contains('invalid jwt') ||
-             body.contains('unable to parse or verify signature');
-    }
-    return false;
   }
 
   // Helper method to capitalize language names to match backend format
@@ -125,7 +135,10 @@ class VocabularyService {
   }
   
   // Single topic generation
-  static Future<GenerateResponse> generateSingleTopic(VocabularyRequest request) async {
+  static Future<GenerateResponse> generateSingleTopic(
+    VocabularyRequest request, {
+    UserProvider? userProvider,
+  }) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/generate/single');
     _log('POST $uri');
@@ -143,7 +156,7 @@ class VocabularyService {
     _log('  - save_topic_list: ${requestBody['save_topic_list']}');
     _log('  - topic_list_name: ${requestBody['topic_list_name']}');
     try {
-      final headers = await _getAuthenticatedHeaders();
+      final headers = await _getAuthenticatedHeaders(userProvider: userProvider);
       _log('Headers: ${headers.keys.join(', ')}');
       if (headers.containsKey('Authorization')) {
         final authHeader = headers['Authorization']!;
@@ -190,6 +203,7 @@ class VocabularyService {
     int delaySeconds = 2,
     bool saveTopicList = true,
     String? topicListName,
+    UserProvider? userProvider,
   }) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/generate/multiple');
@@ -213,7 +227,7 @@ class VocabularyService {
     _log('  - idioms_per_batch: $idiomsPerBatch');
     _log('🔍 Total items being requested: ${vocabPerBatch + phrasalVerbsPerBatch + idiomsPerBatch}');
     try {
-      final headers = await _getAuthenticatedHeaders();
+      final headers = await _getAuthenticatedHeaders(userProvider: userProvider);
       _log('Headers: ${headers.keys.join(', ')}');
       
       final response = await http.post(
@@ -270,6 +284,7 @@ class VocabularyService {
     int phrasalVerbsPerBatch = 5,
     int idiomsPerBatch = 3,
     int delaySeconds = 2,
+    UserProvider? userProvider,
   }) async {
     _log('Base URL: $baseUrl');
     final uri = Uri.parse('$baseUrl/generate/category');
@@ -285,7 +300,7 @@ class VocabularyService {
       'delay_seconds': delaySeconds,
     })}');
     try {
-      final headers = await _getAuthenticatedHeaders();
+      final headers = await _getAuthenticatedHeaders(userProvider: userProvider);
       _log('Headers: ${headers.keys.join(', ')}');
       
       final response = await http.post(

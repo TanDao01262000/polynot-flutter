@@ -226,43 +226,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
 
-  Widget _buildStatCard({
-    required IconData icon,
-    required String title,
-    required String value,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE9ECEF)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: const Color(0xFF5D6D7E), size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF2C3E50),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF7F8C8D),
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildMainOptions(BuildContext context) {
     return Consumer<UserProvider>(

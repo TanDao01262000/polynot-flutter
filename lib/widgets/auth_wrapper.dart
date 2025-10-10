@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/tts_provider.dart';
 import '../providers/user_plan_provider.dart';
-import '../screens/home_screen.dart';
+import '../screens/main_tab_screen.dart';
 import '../screens/user_login_screen.dart';
 
 class AuthWrapper extends StatefulWidget {
@@ -39,7 +39,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           
           // Initialize UserPlanProvider first (needed for TTS premium checks)
           try {
-            userPlanProvider.setCurrentUserId(userProvider.sessionToken!);
+            userPlanProvider.setSessionToken(userProvider.sessionToken!, userProvider: userProvider);
             await userPlanProvider.loadUserPlan();
             print('📋 AuthWrapper: UserPlanProvider initialized successfully');
           } catch (e) {
@@ -113,8 +113,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
         // Navigate based on authentication status
         if (userProvider.isLoggedIn) {
-          print('🔐 AuthWrapper: User is logged in, showing home screen');
-          return const HomeScreen();
+          print('🔐 AuthWrapper: User is logged in, showing main tab screen');
+          return const MainTabScreen();
         } else {
           print('🔐 AuthWrapper: User is not logged in, showing login screen');
           return const UserLoginScreen();

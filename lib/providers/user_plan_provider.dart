@@ -1,19 +1,21 @@
 import 'package:flutter/foundation.dart';
 import '../services/user_subscription_service.dart';
+import 'user_provider.dart';
 
 class UserPlanProvider extends ChangeNotifier {
   UserSubscriptionResponse? _subscription;
   UserQuotaResponse? _quota;
   bool _isLoading = false;
   String? _error;
-  String? _currentUserId;
+  String? _sessionToken;
+  UserProvider? _userProvider; // Reference to UserProvider for token refresh
 
   // Getters
   UserSubscriptionResponse? get subscription => _subscription;
   UserQuotaResponse? get quota => _quota;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  String? get currentUserId => _currentUserId;
+  String? get sessionToken => _sessionToken;
 
   // Plan status getters
   bool get isPremium => _subscription?.isPremium ?? false;
@@ -41,16 +43,39 @@ class UserPlanProvider extends ChangeNotifier {
   DateTime? get quotaResetDate => null; // Not provided in current API
   DateTime? get subscriptionExpiresAt => _subscription?.expiresAt;
 
-  // Set current user ID
-  void setCurrentUserId(String userId) {
-    _currentUserId = userId;
-    print('📋 UserPlanProvider: Set current user ID: ${userId.substring(0, 20)}...');
+  // Set session token and user provider reference
+  void setSessionToken(String? token, {UserProvider? userProvider}) {
+    _sessionToken = token;
+    _userProvider = userProvider;
+    if (token != null) {
+      print('📋 UserPlanProvider: Set session token: ${token.substring(0, 20)}...');
+      print('📋 UserPlanProvider: UserProvider reference: ${userProvider != null ? "SET ✅" : "NULL ❌"}');
+    } else {
+      print('📋 UserPlanProvider: Cleared session token');
+    }
+  }
+
+  // Get valid token with auto-refresh
+  Future<String?> _getValidToken() async {
+    print('📋 UserPlanProvider: _getValidToken called');
+    print('📋 UserPlanProvider: _userProvider is ${_userProvider != null ? "SET" : "NULL"}');
+    print('📋 UserPlanProvider: _sessionToken is ${_sessionToken != null ? "SET (${_sessionToken!.substring(0, 20)}...)" : "NULL"}');
+    
+    if (_userProvider != null) {
+      print('📋 UserPlanProvider: Using UserProvider.getValidAccessToken() for auto-refresh');
+      final token = await _userProvider!.getValidAccessToken();
+      print('📋 UserPlanProvider: Got token from UserProvider: ${token != null ? "${token.substring(0, 20)}..." : "NULL"}');
+      return token;
+    }
+    
+    print('📋 UserPlanProvider: WARNING - No UserProvider, using _sessionToken (may be expired!)');
+    return _sessionToken;
   }
 
   // Load user subscription information
   Future<void> loadUserSubscription() async {
-    if (_currentUserId == null) {
-      print('📋 UserPlanProvider: No current user ID set');
+    if (_sessionToken == null) {
+      print('📋 UserPlanProvider: No session token set');
       return;
     }
 
@@ -59,12 +84,43 @@ class UserPlanProvider extends ChangeNotifier {
 
     try {
       print('📋 UserPlanProvider: Loading user subscription...');
-      _subscription = await UserSubscriptionService.getUserSubscription(_currentUserId!);
+      
+      // Get valid token (auto-refresh if needed)
+      final validToken = await _getValidToken();
+      if (validToken == null) {
+        throw Exception('Failed to get valid authentication token');
+      }
+      
+      _subscription = await UserSubscriptionService.getUserSubscription(validToken);
       print('📋 UserPlanProvider: Subscription loaded - Plan: ${_subscription?.plan}, Status: ${_subscription?.status}');
       notifyListeners();
     } catch (e) {
       _error = e.toString();
       print('📋 UserPlanProvider: Error loading subscription: $e');
+      
+      // If it's a 401 error, try refreshing once and retry
+      if (e.toString().contains('401') && _userProvider != null) {
+        print('🔄 Attempting to refresh token and retry...');
+        final refreshed = await _userProvider!.refreshAccessToken();
+        
+        if (refreshed) {
+          // Retry with new token
+          try {
+            final newToken = _userProvider!.sessionToken;
+            if (newToken != null) {
+              _subscription = await UserSubscriptionService.getUserSubscription(newToken);
+              print('✅ Subscription loaded successfully after token refresh');
+              _error = null;
+              notifyListeners();
+              _setLoading(false);
+              return;
+            }
+          } catch (retryError) {
+            print('🔴 Retry failed after token refresh: $retryError');
+          }
+        }
+      }
+      
       notifyListeners();
     } finally {
       _setLoading(false);
@@ -73,8 +129,8 @@ class UserPlanProvider extends ChangeNotifier {
 
   // Load user quota information
   Future<void> loadUserQuota() async {
-    if (_currentUserId == null) {
-      print('📋 UserPlanProvider: No current user ID set');
+    if (_sessionToken == null) {
+      print('📋 UserPlanProvider: No session token set');
       return;
     }
 
@@ -83,12 +139,43 @@ class UserPlanProvider extends ChangeNotifier {
 
     try {
       print('📋 UserPlanProvider: Loading user quota...');
-      _quota = await UserSubscriptionService.getUserQuota(_currentUserId!);
+      
+      // Get valid token (auto-refresh if needed)
+      final validToken = await _getValidToken();
+      if (validToken == null) {
+        throw Exception('Failed to get valid authentication token');
+      }
+      
+      _quota = await UserSubscriptionService.getUserQuota(validToken);
       print('📋 UserPlanProvider: Quota loaded - Characters: ${_quota?.charactersUsedThisMonth}/${_quota?.monthlyCharacterLimit}');
       notifyListeners();
     } catch (e) {
       _error = e.toString();
       print('📋 UserPlanProvider: Error loading quota: $e');
+      
+      // If it's a 401 error, try refreshing once and retry
+      if (e.toString().contains('401') && _userProvider != null) {
+        print('🔄 Attempting to refresh token and retry...');
+        final refreshed = await _userProvider!.refreshAccessToken();
+        
+        if (refreshed) {
+          // Retry with new token
+          try {
+            final newToken = _userProvider!.sessionToken;
+            if (newToken != null) {
+              _quota = await UserSubscriptionService.getUserQuota(newToken);
+              print('✅ Quota loaded successfully after token refresh');
+              _error = null;
+              notifyListeners();
+              _setLoading(false);
+              return;
+            }
+          } catch (retryError) {
+            print('🔴 Retry failed after token refresh: $retryError');
+          }
+        }
+      }
+      
       notifyListeners();
     } finally {
       _setLoading(false);
@@ -97,8 +184,8 @@ class UserPlanProvider extends ChangeNotifier {
 
   // Load both subscription and quota
   Future<void> loadUserPlan() async {
-    if (_currentUserId == null) {
-      print('📋 UserPlanProvider: No current user ID set');
+    if (_sessionToken == null) {
+      print('📋 UserPlanProvider: No session token set');
       return;
     }
 
@@ -108,10 +195,16 @@ class UserPlanProvider extends ChangeNotifier {
     try {
       print('📋 UserPlanProvider: Loading user plan information...');
       
-      // Load both subscription and quota in parallel
+      // Get valid token (auto-refresh if needed)
+      final validToken = await _getValidToken();
+      if (validToken == null) {
+        throw Exception('Failed to get valid authentication token');
+      }
+      
+      // Load both subscription and quota in parallel with VALID token
       final results = await Future.wait([
-        UserSubscriptionService.getUserSubscription(_currentUserId!),
-        UserSubscriptionService.getUserQuota(_currentUserId!),
+        UserSubscriptionService.getUserSubscription(validToken),
+        UserSubscriptionService.getUserQuota(validToken),
       ]);
 
       _subscription = results[0] as UserSubscriptionResponse;
@@ -126,6 +219,38 @@ class UserPlanProvider extends ChangeNotifier {
     } catch (e) {
       _error = e.toString();
       print('📋 UserPlanProvider: Error loading plan: $e');
+      
+      // If it's a 401 error, try refreshing once and retry
+      if (e.toString().contains('401') && _userProvider != null) {
+        print('🔄 Attempting to refresh token and retry...');
+        final refreshed = await _userProvider!.refreshAccessToken();
+        
+        if (refreshed) {
+          // Retry with new token
+          try {
+            final newToken = await _getValidToken();
+            if (newToken != null) {
+              final results = await Future.wait([
+                UserSubscriptionService.getUserSubscription(newToken),
+                UserSubscriptionService.getUserQuota(newToken),
+              ]);
+              
+              _subscription = results[0] as UserSubscriptionResponse;
+              _quota = results[1] as UserQuotaResponse;
+              
+              print('✅ Plan loaded successfully after token refresh');
+              _error = null;
+              notifyListeners();
+              _setLoading(false);
+              return;
+            }
+          } catch (retryError) {
+            print('🔴 Retry failed after token refresh: $retryError');
+          }
+        }
+      }
+      
+      print('🔴 UserPlanProvider: Authentication failed (401) - Token expired or invalid');
       notifyListeners();
     } finally {
       _setLoading(false);
@@ -186,7 +311,7 @@ class UserPlanProvider extends ChangeNotifier {
     _subscription = null;
     _quota = null;
     _error = null;
-    _currentUserId = null;
+    _sessionToken = null;
     _setLoading(false);
     print('📋 UserPlanProvider: Cleared all data');
     notifyListeners();
