@@ -1,8 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class UserSubscriptionService {
-  static const String _baseUrl = 'http://localhost:8001';
+  static String get _baseUrl {
+    final envUrl = dotenv.env['VOCAB_API_BASE_URL']?.trim();
+    if (envUrl != null && envUrl.isNotEmpty) return envUrl;
+    return 'http://localhost:8001';
+  }
 
   // Get user's subscription information
   static Future<UserSubscriptionResponse> getUserSubscription(String userToken) async {
