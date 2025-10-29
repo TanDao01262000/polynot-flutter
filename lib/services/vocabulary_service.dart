@@ -7,6 +7,7 @@ import '../models/vocabulary_request.dart';
 import '../models/generate_response.dart';
 import '../models/vocabulary_category.dart';
 import '../utils/string_extensions.dart';
+import '../utils/http_client.dart';
 import 'auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/user_provider.dart';
@@ -163,7 +164,7 @@ class VocabularyService {
         _log('🔐 Authorization: ${authHeader.substring(0, 20)}...');
       }
       
-      final response = await http.post(
+      final response = await httpPost(
         uri,
         headers: headers,
         body: jsonEncode(request.toJson()),
@@ -230,7 +231,7 @@ class VocabularyService {
       final headers = await _getAuthenticatedHeaders(userProvider: userProvider);
       _log('Headers: ${headers.keys.join(', ')}');
       
-      final response = await http.post(
+      final response = await httpPost(
         uri,
         headers: headers,
         body: jsonEncode(requestBody),
@@ -303,7 +304,7 @@ class VocabularyService {
       final headers = await _getAuthenticatedHeaders(userProvider: userProvider);
       _log('Headers: ${headers.keys.join(', ')}');
       
-      final response = await http.post(
+      final response = await httpPost(
         uri,
         headers: headers,
         body: jsonEncode({
@@ -363,7 +364,7 @@ class VocabularyService {
     final uri = Uri.parse('$baseUrl/categories');
     _log('GET $uri');
     try {
-      final response = await http.get(uri);
+      final response = await httpGet(uri);
       _log('Status: ${response.statusCode}');
       _log('Response: ${_trimBody(response.body)}');
       if (response.statusCode == 200) {
@@ -395,7 +396,7 @@ class VocabularyService {
     final uri = Uri.parse('$baseUrl/topics/$category');
     _log('GET $uri');
     try {
-      final response = await http.get(uri);
+      final response = await httpGet(uri);
       _log('Status: ${response.statusCode}');
       _log('Response: ${_trimBody(response.body)}');
       if (response.statusCode == 200) {
@@ -518,7 +519,7 @@ class VocabularyService {
     final uri = Uri.parse('$baseUrl/health');
     _log('GET $uri');
     try {
-      final response = await http.get(
+      final response = await httpGet(
         uri,
         headers: {'Content-Type': 'application/json'},
       ).timeout(
@@ -585,7 +586,7 @@ class VocabularyService {
     }
     
     try {
-      final response = await http.get(uri, headers: headers);
+      final response = await httpGet(uri, headers: headers);
       _log('Status: ${response.statusCode}');
       _log('Response: ${_trimBody(response.body)}');
 
@@ -597,7 +598,7 @@ class VocabularyService {
         final fallbackUri = Uri.parse('$baseUrl/vocab/list').replace(
           queryParameters: requestJson.map((key, value) => MapEntry(key, value.toString())),
         );
-        final fallbackResponse = await http.get(fallbackUri, headers: headers);
+        final fallbackResponse = await httpGet(fallbackUri, headers: headers);
         _log('Fallback Status: ${fallbackResponse.statusCode}');
         if (fallbackResponse.statusCode == 200) {
           return VocabularyListResponse.fromJson(jsonDecode(fallbackResponse.body));
@@ -880,7 +881,7 @@ class VocabularyService {
     _log('GET $uri');
     
     try {
-      final response = await http.get(
+      final response = await httpGet(
         uri,
         headers: {
           'Authorization': 'Bearer $sessionToken',
@@ -912,7 +913,7 @@ class VocabularyService {
     _log('GET $uri');
     
     try {
-      final response = await http.get(
+      final response = await httpGet(
         uri,
         headers: {
           'Authorization': 'Bearer $sessionToken',
@@ -970,7 +971,7 @@ class VocabularyService {
     _log('DELETE $uri');
     
     try {
-      final response = await http.delete(
+      final response = await httpDelete(
         uri,
         headers: {
           'Authorization': 'Bearer $sessionToken',
@@ -1103,7 +1104,7 @@ class VocabularyService {
     _log('GET $uri');
     
     try {
-      final response = await http.get(
+      final response = await httpGet(
         uri,
         headers: {
           'Authorization': 'Bearer $sessionToken',

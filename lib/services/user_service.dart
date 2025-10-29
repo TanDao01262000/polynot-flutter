@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/user.dart';
 import 'password_service.dart';
+import '../utils/http_client.dart';
 
 class UserService {
   static String get baseUrl => dotenv.env['LOCAL_API_ENDPOINT'] ?? 'http://localhost:8000';
@@ -76,7 +77,7 @@ class UserService {
       
       print('Getting user profile from: $uri');
       
-      final response = await http.get(uri);
+      final response = await httpGet(uri);
 
       print('Get User Profile Response Status: ${response.statusCode}');
       print('Get User Profile Response Body: ${response.body}');
@@ -241,7 +242,7 @@ class UserService {
       print('Request data values: ${request.toJson().values.toList()}');
       
       // Try PATCH method with different endpoint structure
-      final response = await http.patch(
+      final response = await httpPatch(
         uri,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(request.toJson()),
