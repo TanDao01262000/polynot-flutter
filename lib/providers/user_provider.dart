@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:convert';
 import '../models/user.dart';
 import '../services/user_service.dart';
+import '../utils/http_client.dart';
 
 class UserProvider with ChangeNotifier {
   User? _currentUser;
@@ -287,7 +287,7 @@ class UserProvider with ChangeNotifier {
     try {
       print('🔄 Refreshing access token...');
       
-      final response = await http.post(
+      final response = await httpPost(
         Uri.parse('$_baseUrl/auth/refresh'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'refresh_token': _refreshToken}),
@@ -532,7 +532,7 @@ class UserProvider with ChangeNotifier {
   Future<bool> _validateStoredToken(String token) async {
     try {
       // Call the token validation endpoint
-      final response = await http.get(
+      final response = await httpGet(
         Uri.parse('$_baseUrl/auth/validate'),
         headers: {
           'Authorization': 'Bearer $token',
@@ -575,7 +575,36 @@ class UserProvider with ChangeNotifier {
       final hasStoredData = await _loadAuthData();
       
       if (hasStoredData && _sessionToken != null) {
-        // Validate the stored token
+        // Check if access token is expired or about to expire
+        bool needsRefresh = false;
+        if (_tokenExpiresAt != null) {
+          final timeUntilExpiry = _tokenExpiresAt!.difference(DateTime.now());
+          // Token is expired or expires in less than 5 minutes
+          needsRefresh = timeUntilExpiry.inMinutes < 5;
+          print('🔐 Access token expires in: ${timeUntilExpiry.inMinutes} minutes');
+        }
+        
+        // If token needs refresh, try refreshing first
+        if (needsRefresh && _refreshToken != null) {
+          print('🔐 Access token expired or expiring soon, attempting refresh...');
+          final refreshed = await refreshAccessToken();
+          
+          if (refreshed) {
+            print('🔐 Token refreshed successfully, auto-login successful');
+            _setLoading(false);
+            notifyListeners();
+            return;
+          } else {
+            // Refresh failed (refresh token expired), clear auth data
+            print('🔐 Refresh token expired, clearing auth data');
+            await _clearAuthData();
+            _setLoading(false);
+            notifyListeners();
+            return;
+          }
+        }
+        
+        // Token looks valid, validate with backend
         final isValid = await _validateStoredToken(_sessionToken!);
         
         if (isValid) {
@@ -584,8 +613,21 @@ class UserProvider with ChangeNotifier {
           notifyListeners();
           return;
         } else {
-          // Token is invalid, clear stored data
-          print('🔐 Stored token invalid, clearing auth data');
+          // Token is invalid, try refreshing if we have refresh token
+          if (_refreshToken != null) {
+            print('🔐 Stored token invalid, attempting refresh...');
+            final refreshed = await refreshAccessToken();
+            
+            if (refreshed) {
+              print('🔐 Token refreshed successfully after validation failure');
+              _setLoading(false);
+              notifyListeners();
+              return;
+            }
+          }
+          
+          // Both validation and refresh failed, clear stored data
+          print('🔐 Stored token invalid and refresh failed, clearing auth data');
           await _clearAuthData();
         }
       }
@@ -595,6 +637,8 @@ class UserProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('🔐 Auth initialization failed: $e');
+      // Clear auth data on any error during initialization
+      await _clearAuthData();
       _setLoading(false);
       notifyListeners();
     }

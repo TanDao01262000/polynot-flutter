@@ -5,6 +5,7 @@ import '../providers/tts_provider.dart';
 import '../providers/user_plan_provider.dart';
 import '../screens/main_tab_screen.dart';
 import '../screens/user_login_screen.dart';
+import '../utils/http_client.dart';
 
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
@@ -31,6 +32,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
       
       // Use post-frame callback to avoid setState during build
       WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // Set global UserProvider reference for HTTP client error handling
+        setGlobalUserProvider(userProvider);
+        
         await userProvider.initializeAuth();
         
         // Initialize providers if user is logged in

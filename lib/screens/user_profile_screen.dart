@@ -411,8 +411,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               title: const Text('Voice Settings'),
               content: SizedBox(
                 width: double.maxFinite,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                height: MediaQuery.of(context).size.height * 0.6,
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
                     const Text('Select your preferred voice for pronunciation:'),
                     const SizedBox(height: 16),
@@ -423,6 +424,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                     ] else ...[
                       // Default voice option
                       RadioListTile<String?>(
+                        contentPadding: EdgeInsets.zero,
                         title: const Text('Default Voice'),
                         subtitle: const Text('System default voice'),
                         value: null,
@@ -469,8 +471,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                             return Card(
                               margin: const EdgeInsets.only(bottom: 8),
                               child: RadioListTile<String?>(
-                                title: Text(profile.voiceName),
-                                subtitle: Text('${profile.provider} - ${profile.voiceId}'),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                dense: true,
+                                title: Text(
+                                  profile.voiceName,
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                                subtitle: Text(
+                                  '${profile.provider} - ${profile.voiceId}',
+                                  style: const TextStyle(fontSize: 12),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                                 value: profile.voiceId,
                                 groupValue: ttsProvider.selectedVoiceId,
                                 onChanged: (value) async {
@@ -482,21 +494,34 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                     if (value == 'delete') {
                                       final confirmed = await _showDeleteConfirmation(context, profile.voiceName);
                                       if (confirmed && mounted) {
+                                        print('🗑️ Attempting to delete voice profile:');
+                                        print('   - ID: ${profile.id}');
+                                        print('   - Voice ID: ${profile.voiceId}');
+                                        print('   - Name: ${profile.voiceName}');
+                                        
                                         final success = await ttsProvider.deleteVoiceProfile(profile.id);
                                         if (success) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text('Voice "${profile.voiceName}" deleted successfully'),
-                                              backgroundColor: Colors.green,
-                                            ),
-                                          );
+                                          // Close dialog after successful deletion
+                                          Navigator.of(context).pop();
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Voice "${profile.voiceName}" deleted successfully'),
+                                                backgroundColor: Colors.green,
+                                              ),
+                                            );
+                                          }
+                                          // Reload voice profiles to refresh the list
+                                          await ttsProvider.loadVoiceProfiles();
                                         } else {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text('Failed to delete voice: ${ttsProvider.error ?? "Unknown error"}'),
-                                              backgroundColor: Colors.red,
-                                            ),
-                                          );
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Failed to delete voice: ${ttsProvider.error ?? "Unknown error"}'),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
                                         }
                                       }
                                     }

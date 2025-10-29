@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/http_client.dart';
 
 class TTSService {
   static String get baseUrl {
@@ -70,7 +71,7 @@ class TTSService {
     _log('Body: ${jsonEncode(requestBody)}');
     
     try {
-      final response = await http.post(
+      final response = await httpPost(
         uri,
         headers: _getAuthHeaders(userToken),
         body: jsonEncode(requestBody),
@@ -113,7 +114,7 @@ class TTSService {
     _log('Final URI: $uriWithParams');
     
     try {
-      final response = await http.post(
+      final response = await httpPost(
         uriWithParams,
         headers: _getAuthHeaders(userToken),
       );
@@ -171,7 +172,7 @@ class TTSService {
     print('🔊 TTSService: Final request body: ${jsonEncode(requestBody)}');
     
     try {
-      final response = await http.post(
+      final response = await httpPost(
         uri,
         headers: _getAuthHeaders(userToken),
         body: jsonEncode(requestBody),
@@ -219,7 +220,7 @@ class TTSService {
     _log('GET $uri');
     
     try {
-      final response = await http.get(
+      final response = await httpGet(
         uri,
         headers: _getAuthHeaders(userToken),
       );
@@ -263,7 +264,7 @@ class TTSService {
     _log('Final URI: $uriWithParams');
     
     try {
-      final response = await http.post(
+      final response = await httpPost(
         uriWithParams,
         headers: _getAuthHeaders(userToken),
       );
@@ -305,7 +306,7 @@ class TTSService {
     _log('Body: ${jsonEncode(requestBody)}');
     
     try {
-      final response = await http.post(
+      final response = await httpPost(
         uri,
         headers: _getAuthHeaders(userToken),
         body: jsonEncode(requestBody),
@@ -335,7 +336,7 @@ class TTSService {
     _log('DELETE $uri');
     
     try {
-      final response = await http.delete(
+      final response = await httpDelete(
         uri,
         headers: _getAuthHeaders(userToken),
       );
@@ -359,7 +360,7 @@ class TTSService {
     _log('GET $uri');
     
     try {
-      final response = await http.get(
+      final response = await httpGet(
         uri,
         headers: _getAuthHeaders(userToken),
       );
@@ -370,7 +371,15 @@ class TTSService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is List) {
-          return data.map((item) => TTSVoiceProfile.fromJson(item)).toList();
+          final profiles = data.map((item) {
+            _log('🔍 Parsing voice profile: $item');
+            return TTSVoiceProfile.fromJson(item);
+          }).toList();
+          _log('🔍 Parsed ${profiles.length} voice profiles');
+          for (final profile in profiles) {
+            _log('🔍 Profile: name="${profile.voiceName}", id="${profile.id}", voiceId="${profile.voiceId}"');
+          }
+          return profiles;
         }
         return [];
       } else {
@@ -388,11 +397,20 @@ class TTSService {
     String? userToken,
   }) async {
     _log('Base URL: $baseUrl');
+    _log('🗑️ Delete Voice Profile called with ID: "$voiceProfileId"');
+    _log('🗑️ ID length: ${voiceProfileId.length}');
+    _log('🗑️ ID type: ${voiceProfileId.runtimeType}');
+    
+    if (voiceProfileId.isEmpty) {
+      _log('Error: Voice profile ID is empty!');
+      return false;
+    }
+    
     final uri = Uri.parse('$baseUrl/tts/voice-profiles/$voiceProfileId');
     _log('DELETE $uri');
     
     try {
-      final response = await http.delete(
+      final response = await httpDelete(
         uri,
         headers: _getAuthHeaders(userToken),
       );
@@ -400,7 +418,16 @@ class TTSService {
       _log('Status: ${response.statusCode}');
       _log('Response: ${_trimBody(response.body)}');
 
-      return response.statusCode == 200;
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        _log('✅ Voice profile deleted successfully');
+        return true;
+      } else if (response.statusCode == 404) {
+        _log('❌ Voice profile not found with ID: "$voiceProfileId"');
+        return false;
+      } else {
+        _log('❌ Delete failed with status: ${response.statusCode}');
+        return false;
+      }
     } catch (e) {
       _log('Error: $e');
       return false;
@@ -416,7 +443,7 @@ class TTSService {
     _log('GET $uri');
     
     try {
-      final response = await http.get(
+      final response = await httpGet(
         uri,
         headers: _getAuthHeaders(userToken),
       );
@@ -444,7 +471,7 @@ class TTSService {
     _log('GET $uri');
     
     try {
-      final response = await http.get(
+      final response = await httpGet(
         uri,
         headers: _getAuthHeaders(userToken),
       );
@@ -575,6 +602,12 @@ class TTSService {
       _log('🔊 TTSService: Status: ${response.statusCode}');
       _log('🔊 TTSService: Response: ${_trimBody(response.body)}');
       
+      // Check for 401 error and handle token expiration
+      if (response.statusCode == 401) {
+        _log('🔊 TTSService: 401 Unauthorized detected, triggering logout');
+        await handle401Error();
+      }
+      
       if (response.statusCode == 200) {
         _log('🔊 TTSService: Success response received');
         return TTSVoiceCloneResponse.fromJson(jsonDecode(response.body));
@@ -594,7 +627,7 @@ class TTSService {
     final uri = Uri.parse('$baseUrl/health');
     _log('GET $uri');
     try {
-      final response = await http.get(
+      final response = await httpGet(
         uri,
         headers: {'Content-Type': 'application/json'},
       ).timeout(
@@ -806,12 +839,16 @@ class TTSVoiceProfile {
   });
 
   factory TTSVoiceProfile.fromJson(Map<String, dynamic> json) {
+    final id = json['id']?.toString() ?? '';
+    if (id.isEmpty) {
+      print('⚠️ TTSVoiceProfile: Warning - ID field is empty!');
+    }
     return TTSVoiceProfile(
-      id: json['id'] ?? '',
-      userId: json['user_id'] ?? '',
-      voiceName: json['voice_name'] ?? '',
-      voiceId: json['voice_id'] ?? '',
-      provider: json['provider'] ?? '',
+      id: id,
+      userId: json['user_id']?.toString() ?? '',
+      voiceName: json['voice_name']?.toString() ?? '',
+      voiceId: json['voice_id']?.toString() ?? '',
+      provider: json['provider']?.toString() ?? '',
       isActive: json['is_active'] ?? false,
       createdAt: json['created_at'] != null 
           ? DateTime.parse(json['created_at']) 
